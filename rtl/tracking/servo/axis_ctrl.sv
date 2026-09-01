@@ -20,11 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module axis_ctrl(
-    input [8:0] delta_x,
-    input [7:0] delta_y,
-    input update,
-    output [7:0] angle_x,
-    output [7:0] angle_y
-    );
+module axis_ctrl (
+    input  logic [8:0] delta_x,
+    input  logic [7:0] delta_y,
+    input  logic       update,
+    output logic [7:0] angle_x,
+    output logic [7:0] angle_y
+);
 endmodule
