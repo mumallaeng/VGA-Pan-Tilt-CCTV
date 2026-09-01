@@ -1,3 +1,7 @@
+//This file used for find red filter threshold
+//r_min = 158 = 1001_1110
+
+
 `timescale 1ns / 1ps
 
 `default_nettype none
