@@ -1,0 +1,83 @@
+# ==============================================================================
+# Vivado / Verilog / SystemVerilog project
+#
+# Keep in Git:
+#   <project>.xpr                 Vivado project file
+#   <project>.srcs/               RTL, testbenches, .xdc constraints, .bd, .xci
+#   <project>.gen/sources_1/bd/**/hdl   (only if you script-regenerate: usually ignored)
+#   *.wcfg                        simulation waveform configs
+#   scripts, docs, README
+#
+# Everything below is tool-regenerated from the .xpr + sources and is ignored.
+# ==============================================================================
+
+# --- Vivado generated project directories -------------------------------------
+*.cache/
+*.hw/
+*.hbs/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.gen/
+*.srcs/**/ip/*/
+.Xil/
+.cxl/
+
+# --- Vivado / Vitis journals, logs, backups -----------------------------------
+*.jou
+*.log
+*.str
+*.pb
+vivado*.backup.*
+vivado_pid*.str
+hs_err_pid*.log
+*.debug
+
+# --- WebTalk / usage statistics ---------------------------------------------
+usage_statistics_webtalk*
+webtalk*.jou
+webtalk*.log
+*.wdf
+
+# --- Simulation outputs (keep .wcfg, drop the rest) --------------------------
+xsim.dir/
+*.wdb
+*.vcd
+*.saif
+*.ghw
+xvhdl.pb
+xvlog.pb
+xelab.pb
+xsim.jou
+xsim.log
+compile.log
+elaborate.log
+simulate.log
+
+# --- Synthesis / implementation reports & checkpoints -----------------------
+*.dcp
+*.rpt
+*.rpx
+
+# --- Bitstream / hardware handoff outputs ----------------------------------
+*.bit
+*.bin
+*.ltx
+*.mmi
+*.xsa
+*.pdi
+
+# --- IP / OOC build residue ------------------------------------------------
+managed_ip_project/
+.ipdef
+*.dmp
+
+# --- OS / editor metadata -------------------------------------------------
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/
+.idea/
