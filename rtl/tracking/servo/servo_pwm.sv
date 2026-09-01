@@ -1,27 +1,33 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2026/09/01 11:47:50
-// Design Name: 
-// Module Name: servo_pwm
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
+module servo_pwm #(
+    parameter CLK_HZ = 50_000_000,
+    parameter PERIOD = CLK_HZ / 50,
+    parameter PWM_MIN = CLK_HZ / 1000,
+    parameter PWM_MAX = CLK_HZ / 500,
+    parameter CNT_PER_DEGREE = (PWM_MAX - PWM_MIN) / 180
+) (
+    input  logic       clk,
+    input  logic       rst,
+    input  logic [7:0] angle,
+    output logic       pwm
+);
 
-module servo_pwm(
-    input [7:0] angle,
-    output pwm
-    );
+    logic [$clog2(PERIOD)-1:0] counter;
+    logic [ $clog2(PWM_MAX):0] high;
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            counter <= 0;
+            high    <= PWM_MIN + 90 * CNT_PER_DEGREE;  // default to 90 degrees(1.5ms)
+        end else begin
+            counter <= (counter == PERIOD - 1) ? 0 : counter + 1'b1;
+            if (counter == 0) begin
+                high <= PWM_MIN + angle * CNT_PER_DEGREE;
+            end
+        end
+    end
+
+    assign pwm = (counter < high) ? 1'b1 : 1'b0;
+
 endmodule
