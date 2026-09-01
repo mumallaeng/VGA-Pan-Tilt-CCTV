@@ -22,6 +22,7 @@
 *.srcs/**/ip/*/
 .Xil/
 .cxl/
+*.xpr
 
 # --- Vivado / Vitis journals, logs, backups -----------------------------------
 *.jou
