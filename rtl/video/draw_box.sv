@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module draw_box (
+    input         target_valid,
     input  [ 9:0] x_pixel,
     input  [ 9:0] y_pixel,
     input  [15:0] rd_data,
@@ -13,6 +14,6 @@ module draw_box (
 
     assign x_en   = (x_pixel[9:1] == draw_x) ? 1'b1 : 1'b0;
     assign y_en   = (y_pixel[9:1] == {1'b0, draw_y}) ? 1'b1 : 1'b0;
-    assign box_en = x_en & y_en;
+    assign box_en = target_valid & x_en & y_en;
 
 endmodule
