@@ -1,37 +1,22 @@
 `timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2026/09/01 11:47:50
-// Design Name: 
-// Module Name: ctrl_mode_mux
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
 
+module ctrl_mode_mux (
+    // 0: AUTO(filter), 1: MANUAL(joystick)
+    input  logic              en,
+    input  logic signed [8:0] filter_delta_x,
+    input  logic signed [7:0] filter_delta_y,
+    input  logic              filter_valid,
+    input  logic              filter_done,
+    input  logic signed [8:0] joy_delta_x,
+    input  logic signed [7:0] joy_delta_y,
+    input  logic              joy_done,
+    output logic signed [8:0] delta_x,
+    output logic signed [7:0] delta_y,
+    output logic              sel_done
+);
 
-module ctrl_mode_mux(
-    input en,
-    input [8:0] filter_delta_x,
-    input [7:0] filter_delta_y,
-    input filter_valid,
-    input filter_done,
-    input [8:0] joy_delta_x,
-    input [7:0] joy_delta_y,
-    input joy_done,
-    output [8:0] delta_x,
-    output [7:0] delta_y,
-    output sel_done,
-    output acc_en
-    );
+    assign delta_x  = en ? joy_delta_x : filter_delta_x;
+    assign delta_y  = en ? joy_delta_y : filter_delta_y;
+    assign sel_done = en ? joy_done : (filter_done & filter_valid);
+
 endmodule
