@@ -8,10 +8,11 @@ module tb_servo_pwm;
     logic       pwm;
 
     localparam time CLK_PERIOD = 20ns;  // 50MHz clock
-    localparam int  PWM_PERIOD_CYCLES = 20ms / CLK_PERIOD;
-    localparam int  PWM_MIN_CYCLES = 1ms / CLK_PERIOD;
-    localparam int  PWM_RANGE_CYCLES = 1ms / CLK_PERIOD;
-    localparam TOL = 2;  // 폭 측정 허용 오차 (클럭 단위)
+    localparam int PWM_PERIOD_CYCLES = 20ms / CLK_PERIOD;
+    localparam int PWM_MIN_CYCLES = 1ms / CLK_PERIOD;
+    localparam int PWM_RANGE_CYCLES = 1ms / CLK_PERIOD;
+    localparam int TOL = 2;  // 허용 오차 범위 (클럭 사이클 단위)
+    localparam int CNT_PER_DEGREE_CYCLES = PWM_RANGE_CYCLES / 180;  // 50000/180 = 277
     int error_count = 0;
 
     always #(CLK_PERIOD / 2) clk = ~clk;  // 50MHz clock
@@ -92,14 +93,10 @@ module tb_servo_pwm;
         end
 
         check_angle(8'd0, PWM_MIN_CYCLES);
-        check_angle(8'd45,
-                    PWM_MIN_CYCLES + (45 * PWM_RANGE_CYCLES) / 180);
-        check_angle(8'd90,
-                    PWM_MIN_CYCLES + (90 * PWM_RANGE_CYCLES) / 180);
-        check_angle(8'd135,
-                    PWM_MIN_CYCLES + (135 * PWM_RANGE_CYCLES) / 180);
-        check_angle(8'd180,
-                    PWM_MIN_CYCLES + (180 * PWM_RANGE_CYCLES) / 180);
+        check_angle(8'd45, PWM_MIN_CYCLES + 45 * CNT_PER_DEGREE_CYCLES);
+        check_angle(8'd90, PWM_MIN_CYCLES + 90 * CNT_PER_DEGREE_CYCLES);
+        check_angle(8'd135, PWM_MIN_CYCLES + 135 * CNT_PER_DEGREE_CYCLES);
+        check_angle(8'd180, PWM_MIN_CYCLES + 180 * CNT_PER_DEGREE_CYCLES);
 
         begin  // pulse 진행 중에 angle 변경 시, 다음 펄스에 반영되는지 확인
             int w;
@@ -109,7 +106,7 @@ module tb_servo_pwm;
             angle = 8'd180;  // 다음 펄스에 반영되어야 함
             measure_pulse(w);
             check("Angle 180", w,
-                  PWM_MIN_CYCLES + (180 * PWM_RANGE_CYCLES) / 180);
+                  PWM_MIN_CYCLES + (180 * CNT_PER_DEGREE_CYCLES));
         end
 
         if (error_count == 0) $display("[%0t] All PASSED!", $time);
