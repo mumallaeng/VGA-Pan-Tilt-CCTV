@@ -82,3 +82,6 @@ desktop.ini
 *~
 .vscode/
 .idea/
+
+# --- KDH - want to ignore personal vivado project folder -------------------
+vivado_prj/

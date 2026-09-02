@@ -1,7 +1,5 @@
 `timescale 1ps / 1ps
 
-`default_nettype none
-
 module red_color_filter #(
     //Initial Threshold Value
     //Tuned later using real ov7670
@@ -9,11 +7,15 @@ module red_color_filter #(
     parameter logic [7:0] RG_DIFF = 8'd40,
     parameter logic [7:0] RB_DIFF = 8'd40
 ) (
-    input  wire  [15:0] pixel_rgb565,
-    input  wire         pixel_valid,
-    output logic        red_mask,
-    output logic        red_valid
+    input  wire [15:0] pixel_rgb565,
+    input  wire        pixel_valid,
+    output      [ 3:0] mask_r,
+    output      [ 3:0] mask_g,
+    output      [ 3:0] mask_b
 );
+    // red mask & valid signal
+    logic red_mask;
+    logic red_valid;
     //-------------------------------------------------
     // RGB565 extraction
     //-------------------------------------------------
@@ -64,6 +66,14 @@ module red_color_filter #(
     end
 
     assign red_valid = pixel_valid;
-endmodule
 
-`default_nettype wire
+    //-------------------------------------------------
+    // Convert the one-bit filter result to an RGB444 binary mask
+    //-------------------------------------------------
+    wire mask_en;
+    assign mask_en = red_valid & red_mask;
+
+    assign mask_r  = {4{mask_en}};
+    assign mask_g  = {4{mask_en}};
+    assign mask_b  = {4{mask_en}};
+endmodule

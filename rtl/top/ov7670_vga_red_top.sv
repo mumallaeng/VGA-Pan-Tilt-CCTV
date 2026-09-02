@@ -207,12 +207,17 @@ module ov7670_vga_top (
         .quadrant_4_aligned(quadrant_4_aligned)
     );
 
+    // wire [3:0] mask_r;
+    // wire [3:0] mask_g;
+    // wire [3:0] mask_b;
     red_color_filter U_RED_COLOR_FILTER (
         .pixel_rgb565(display_rgb565),
         .pixel_valid (display_pixel_valid),
-        .red_mask    (red_mask),
-        .red_valid   (red_valid)
+        .mask_r      (mask_r),
+        .mask_g      (mask_g),
+        .mask_b      (mask_b)
     );
+
 
     // Convert the one-bit filter result to an RGB444 binary mask.
     always_comb begin
