@@ -9,12 +9,20 @@ module joystick_xadc_processor (
     input  logic        xadc_eoc,
     output logic [11:0] o_filtered_x,
     output logic [11:0] o_filtered_y,
-    output logic        o_filtered_data_valid
+    output logic        o_filtered_data_valid,
+    // uart test 용 output 신호
+    output logic [11:0] o_raw_x,
+    output logic [11:0] o_raw_y
 );
 
     (* mark_debug = "true" *) logic        w_xadc_data_valid;
     (* mark_debug = "true" *) logic [11:0] w_xadc_x;
     (* mark_debug = "true" *) logic [11:0] w_xadc_y;
+
+    // ===== uart test 용 =====
+    assign o_raw_x = w_xadc_x;
+    assign o_raw_y = w_xadc_y;
+    // ========================
 
     xadc_xy_reader U_XADC_XY_READER (
         .clk              (clk),

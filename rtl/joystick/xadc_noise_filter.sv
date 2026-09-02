@@ -28,7 +28,7 @@ module xadc_noise_filter (
             o_filtered_x          <= 12'd0;
             o_filtered_y          <= 12'd0;
             o_filtered_data_valid <= 1'b0;
-            initialized           <= 2'd0;
+            initialized           <= 1'b0;
         end else begin
             o_filtered_data_valid <= 1'b0;
             if (i_xadc_data_valid) begin
