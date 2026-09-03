@@ -15,8 +15,13 @@ module ctrl_mode_mux (
     output logic              sel_done
 );
 
-    logic signed scaled_joy_dx = joy_dx * 32;  // -10~10 -> -320~320
-    logic signed scaled_joy_dy = joy_dy * 24;  // -10~10 -> -240~240
+    logic signed [9:0] scaled_joy_dx;
+    logic signed [8:0] scaled_joy_dy;
+
+    // Map the joystick's nominal -10..+10 range onto the centered
+    // 320x240 image-coordinate ranges: X -160..+160, Y -120..+120.
+    assign scaled_joy_dx = $signed(joy_dx) * 10'sd16;
+    assign scaled_joy_dy = $signed(joy_dy) * 9'sd12;
 
     assign delta_x  = mode ? scaled_joy_dx : frame_dx;
     assign delta_y  = mode ? scaled_joy_dy : frame_dy;
