@@ -128,7 +128,8 @@ module noise_filter_3x3 #(
         if (edge_pixel) begin
             clean_mask = 1'b0;
         end else begin
-            clean_mask = (neighbor_sum >= 4'd5);
+            // clean_mask = (neighbor_sum >= 4'd5);
+            clean_mask = (neighbor_sum >= 4'd9);
         end
     end
 

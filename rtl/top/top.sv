@@ -150,6 +150,8 @@ module top (
 
     // VGA Frame Reader
     // ---------------------------------------------
+    wire box_en_raw;
+    reg  box_en_aligned;
     wire [8:0] img_x;
     wire [7:0] img_y;
     wire [3:0] vga_r;
@@ -170,7 +172,7 @@ module top (
         .vga_x             (x_pixel),
         .vga_y             (y_pixel),
         .video_on          (video_on),
-        .box_en            (1'b0),
+        .box_en            (box_en_aligned),
         .fb_raddr          (fb_rd_addr),
         .fb_rdata          (fb_rd_data),
         .img_x             (img_x),
@@ -227,7 +229,48 @@ module top (
 
     // Min/Max filter? calculate?
     // ---------------------------------------------
-    
+    wire target_valid_in, done;
+    wire [8:0] max_x, min_x;
+    wire [7:0] max_y, min_y;
+    min_max_find U_MIN_MAX_FIND (
+        .pclk           (vga_pclk),
+        .rst            (rst),
+        .clean_mask     (clean_mask),
+        .out_valid      (out_valid),
+        .clean_x        (clean_x),
+        .clean_y        (clean_y),
+        .target_valid_in(target_valid_in),
+        .min_x          (min_x),
+        .max_x          (max_x),
+        .min_y          (min_y),
+        .max_y          (max_y),
+        .done           (done)
+    );
+
+    // Draw bounding box logic
+    // ---------------------------------------------
+    draw_box U_DRAW_BOX (
+        .pclk           (vga_pclk),
+        .rst            (rst),
+        .target_valid_in(target_valid_in),
+        .done           (done),
+        .x_pixel        (x_pixel),
+        .y_pixel        (y_pixel),
+        .max_x          (max_x),
+        .min_x          (min_x),
+        .max_y          (max_y),
+        .min_y          (min_y),
+        .box_en         (box_en_raw)
+    );
+
+    // Realign box_en with the 1-clock BRAM read latency that fb_rdata/
+    // pixel_valid_d (and img_x/img_y) already carry inside
+    // vga_frame_reader_v4. Without this the border lands one pixel_clk
+    // ahead of the image data it is supposed to sit on top of.
+    always_ff @(posedge vga_pclk or posedge rst) begin
+        if (rst) box_en_aligned <= 1'b0;
+        else box_en_aligned <= box_en_raw;
+    end
 
     // Synchronizer to match timing or solve CDC problem
     // Align VGA synchronization with the one-clock frame-buffer read path.

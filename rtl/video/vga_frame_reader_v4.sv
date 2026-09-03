@@ -46,8 +46,10 @@ module vga_frame_reader_v4 #(
 
     localparam FRAME_SIZE = IMG_HEIGHT * IMG_WIDTH;
 
-    // logic [           8:0] img_x;  // 0-319
-    // logic [           7:0] img_y;  // 0-239
+    // Combinational source-image coordinate for THIS cycle's vga_x/vga_y.
+    // Used to address the frame buffer (fb_raddr) right now.
+    logic [           8:0] img_x_comb;  // 0-319
+    logic [           7:0] img_y_comb;  // 0-239
     // Valid for requesting a pixel from the frame buffer.
     logic                  pixel_req_valid;
     // Delayed valid aligned with fb_rdata.
@@ -93,8 +95,8 @@ module vga_frame_reader_v4 #(
 
     always_comb begin : vga_sw_mode_sel
 
-        img_x       = 9'd0;
-        img_y       = 8'd0;
+        img_x_comb  = 9'd0;
+        img_y_comb  = 8'd0;
         mode_active = 1'b0;
 
         case (vga_mode)
@@ -104,8 +106,8 @@ module vga_frame_reader_v4 #(
             // ----------------------------------------------------
             MODE_ORIGINAL: begin
                 if ((vga_x < 320) && (vga_y < 240)) begin
-                    img_x       = vga_x[8:0];
-                    img_y       = vga_y[7:0];
+                    img_x_comb  = vga_x[8:0];
+                    img_y_comb  = vga_y[7:0];
                     mode_active = 1'b1;
                 end
             end
@@ -117,8 +119,8 @@ module vga_frame_reader_v4 #(
             // ----------------------------------------------------
             MODE_FULLSCREEN: begin
                 if ((vga_x < 640) && (vga_y < 480)) begin
-                    img_x       = vga_x[9:1];
-                    img_y       = vga_y[8:1];
+                    img_x_comb  = vga_x[9:1];
+                    img_y_comb  = vga_y[8:1];
                     mode_active = 1'b1;
                 end
             end
@@ -130,11 +132,11 @@ module vga_frame_reader_v4 #(
             MODE_SPLIT: begin
                 if ((vga_x < 640) && (vga_y < 480)) begin
 
-                    if (vga_x < 320) img_x = vga_x[8:0];
-                    else img_x = vga_x - 10'd320;
+                    if (vga_x < 320) img_x_comb = vga_x[8:0];
+                    else img_x_comb = vga_x - 10'd320;
 
-                    if (vga_y < 240) img_y = vga_y[7:0];
-                    else img_y = vga_y - 10'd240;
+                    if (vga_y < 240) img_y_comb = vga_y[7:0];
+                    else img_y_comb = vga_y - 10'd240;
 
                     mode_active = 1'b1;
                 end
@@ -145,15 +147,15 @@ module vga_frame_reader_v4 #(
             // Black screen
             // ----------------------------------------------------
             MODE_BLACK: begin
-                img_x       = 9'd0;
-                img_y       = 8'd0;
+                img_x_comb  = 9'd0;
+                img_y_comb  = 8'd0;
                 mode_active = 1'b0;
             end
 
 
             default: begin
-                img_x       = 9'd0;
-                img_y       = 8'd0;
+                img_x_comb  = 9'd0;
+                img_y_comb  = 8'd0;
                 mode_active = 1'b0;
             end
 
@@ -171,7 +173,7 @@ module vga_frame_reader_v4 #(
     // constant multiplication.
     // ============================================================
 
-    assign addr_calc = (img_y * IMG_WIDTH) + img_x;
+    assign addr_calc = (img_y_comb * IMG_WIDTH) + img_x_comb;
 
 
     // Valid request for the current VGA coordinate.
@@ -204,10 +206,18 @@ module vga_frame_reader_v4 #(
             pixel_valid_d      <= 1'b0;
             split_mode_aligned <= 1'b0;
             quadrant_4_aligned <= 1'b0;
+            img_x              <= 9'd0;
+            img_y              <= 8'd0;
         end else begin
             pixel_valid_d      <= pixel_req_valid;
             split_mode_aligned <= split_mode_req;
             quadrant_4_aligned <= quadrant_4_req;
+            // Delay the source-image coordinate by the same 1 clock as
+            // pixel_valid_d/fb_rdata so img_x/img_y always name the pixel
+            // that pixel_valid/pixel_rgb565 (and therefore red_valid/
+            // red_mask downstream) currently carries.
+            img_x              <= img_x_comb;
+            img_y              <= img_y_comb;
         end
     end
 

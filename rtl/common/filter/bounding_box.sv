@@ -3,17 +3,15 @@
 module min_max_find #(
     parameter int IMG_WIDTH     = 320,
     parameter int IMG_HEIGHT    = 240,
-    parameter int MIN_RED_COUNT = 10,
+    parameter int MIN_RED_COUNT = 5,
     parameter int COUNT_WIDTH   = $clog2(MIN_RED_COUNT + 1)
 ) (
-    input logic pclk,
-    input logic rst,
-
-    input logic       clean_mask,
-    input logic       out_valid,
-    input logic [8:0] clean_x,
-    input logic [7:0] clean_y,
-
+    input  logic       pclk,
+    input  logic       rst,
+    input  logic       clean_mask,
+    input  logic       out_valid,
+    input  logic [8:0] clean_x,
+    input  logic [7:0] clean_y,
     output logic       target_valid_in,
     output logic [8:0] min_x,
     output logic [8:0] max_x,
@@ -36,24 +34,26 @@ module min_max_find #(
     logic [7:0] min_y_reg;
     logic [7:0] max_y_reg;
 
-    assign frame_start = out_valid &&
-                         (clean_x == 9'd0) &&
-                         (clean_y == 8'd0);
+    assign frame_start = out_valid && (clean_x == 9'd0) && (clean_y == 8'd0);
 
+    // assign frame_end = frame_synced && out_valid &&
+    //                    (clean_x == IMG_WIDTH - 1) &&
+    //                    (clean_y == IMG_HEIGHT - 1);
+
+    // Need to fix after lihne buffer is fixed
     assign frame_end = frame_synced && out_valid &&
-                       (clean_x == IMG_WIDTH - 1) &&
-                       (clean_y == IMG_HEIGHT - 1);
+                       (clean_x == IMG_WIDTH - 2) &&
+                       (clean_y == IMG_HEIGHT - 2);
 
     // Ignore pixels until a coordinate (0,0) frame boundary has been seen.
-    assign pixel_hit = out_valid && clean_mask &&
-                       (frame_synced || frame_start);
+    assign pixel_hit = out_valid && clean_mask && (frame_synced || frame_start);
 
     always_ff @(posedge pclk or posedge rst) begin
         if (rst) begin
             frame_synced <= 1'b0;
-            frame_end_d  <= 1'b0;
+            frame_end_d <= 1'b0;
             found_pixel <= 1'b0;
-            mask_count  <= '0;
+            mask_count <= '0;
 
             min_x_reg <= 9'd0;
             max_x_reg <= 9'd0;
@@ -65,7 +65,7 @@ module min_max_find #(
             max_x <= 9'd0;
             min_y <= 8'd0;
             max_y <= 8'd0;
-            done  <= 1'b0;
+            done <= 1'b0;
         end else begin
             // Delay EOF so the last pixel first passes through the normal
             // accumulator path. Results are committed one pclk later.
@@ -74,17 +74,17 @@ module min_max_find #(
 
             if (frame_start) begin
                 frame_synced <= 1'b1;
-                found_pixel <= 1'b0;
-                mask_count  <= '0;
+                found_pixel  <= 1'b0;
+                mask_count   <= '0;
             end
 
             if (pixel_hit) begin
                 // The first detected pixel initializes all four bounds.
                 if (frame_start || !found_pixel) begin
-                    min_x_reg <= clean_x;
-                    max_x_reg <= clean_x;
-                    min_y_reg <= clean_y;
-                    max_y_reg <= clean_y;
+                    min_x_reg   <= clean_x;
+                    max_x_reg   <= clean_x;
+                    min_y_reg   <= clean_y;
+                    max_y_reg   <= clean_y;
                     found_pixel <= 1'b1;
                 end else begin
                     if (clean_x < min_x_reg) min_x_reg <= clean_x;
@@ -95,7 +95,7 @@ module min_max_find #(
 
                 // Only the threshold result is required, so saturate here.
                 if (frame_start) begin
-                    mask_count <= {{(COUNT_WIDTH-1){1'b0}}, 1'b1};
+                    mask_count <= {{(COUNT_WIDTH - 1) {1'b0}}, 1'b1};
                 end else if (mask_count < MIN_RED_COUNT) begin
                     mask_count <= mask_count + 1'b1;
                 end

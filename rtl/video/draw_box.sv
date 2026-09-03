@@ -5,7 +5,7 @@ module draw_box #(
 ) (
     input        pclk,
     input        rst,
-    input        target_valid,
+    input        target_valid_in,
     input        done,
     input  [9:0] x_pixel,
     input  [9:0] y_pixel,
@@ -63,6 +63,6 @@ module draw_box #(
     assign y_edge = (y_pixel[8:1] < draw_min_y + THICKNESS) | (y_pixel[8:1] + THICKNESS >= draw_max_y);
     assign border = inbound & (x_edge | y_edge);
 
-    assign box_en = target_valid & border;
+    assign box_en = target_valid_in & border;
 
 endmodule
