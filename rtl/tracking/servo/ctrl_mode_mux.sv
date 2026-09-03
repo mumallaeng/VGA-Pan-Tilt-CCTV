@@ -16,9 +16,14 @@ module ctrl_mode_mux (
 
     logic signed [9:0] scaled_joy_dx;
     logic signed [8:0] scaled_joy_dy;
+    logic signed [9:0] joy_dx_ext;
+    logic signed [8:0] joy_dy_ext;
 
-    assign scaled_joy_dx = joy_dx <<< 5;  // joy_dx * 32
-    assign scaled_joy_dy = (joy_dy <<< 4) + (joy_dy <<< 3); // joy_dy * 16 + joy_dy * 8 = (joy_dy * 24)
+    assign joy_dx_ext = joy_dx;
+    assign joy_dy_ext = joy_dy;
+
+    assign scaled_joy_dx = joy_dx_ext <<< 5;  // joy_dx * 32
+    assign scaled_joy_dy = (joy_dy_ext <<< 4) + (joy_dy_ext <<< 3);  // joy_dy * 24
 
     assign delta_x = mode ? scaled_joy_dx : frame_dx;
     assign delta_y = mode ? scaled_joy_dy : frame_dy;

@@ -3,13 +3,6 @@
 module axis_ctrl #(
     parameter integer CLK_HZ         = 100_000_000,
     parameter integer MOVE_TICK_HZ   = 50,
-    // Provisional camera mapping for initial testing only:
-    // 320 horizontal pixels ~= 60 degrees, 240 vertical pixels ~= 45 degrees.
-    // Replace these values after measuring the actual camera/lens response.
-    parameter integer PAN_GAIN_NUM   = 60,
-    parameter integer PAN_GAIN_DEN   = 320,
-    parameter integer TILT_GAIN_NUM  = 45,
-    parameter integer TILT_GAIN_DEN  = 240,
     parameter integer PAN_DEADZONE   = 0,
     parameter integer TILT_DEADZONE  = 0,
     parameter integer MAX_STEP_ANGLE = 30
@@ -42,6 +35,7 @@ module axis_ctrl #(
     logic        [                   7:0] step_to_target_tilt;
     logic signed [                   9:0] pan_delta_angle;
     logic signed [                   9:0] tilt_delta_angle;
+    logic                                 angle_valid;
     logic        [MOVE_COUNTER_WIDTH-1:0] move_counter;
     logic                                 move_tick;
 
@@ -64,17 +58,15 @@ module axis_ctrl #(
     end
 
     coord_to_angle #(
-        .PAN_GAIN_NUM (PAN_GAIN_NUM),
-        .PAN_GAIN_DEN (PAN_GAIN_DEN),
-        .TILT_GAIN_NUM(TILT_GAIN_NUM),
-        .TILT_GAIN_DEN(TILT_GAIN_DEN),
         .PAN_DEADZONE (PAN_DEADZONE),
         .TILT_DEADZONE(TILT_DEADZONE)
     ) u_coord_to_angle (
         .clk             (clk),
         .rst             (reset),
+        .in_valid        (update),
         .delta_x         (delta_x),
         .delta_y         (delta_y),
+        .out_valid       (angle_valid),
         .pan_delta_angle (pan_delta_angle),
         .tilt_delta_angle(tilt_delta_angle)
     );
@@ -122,7 +114,7 @@ module axis_ctrl #(
             target_tilt <= 8'd90;
             angle_pan   <= 8'd90;
             angle_tilt  <= 8'd90;
-        end else if (update) begin
+        end else if (angle_valid) begin
             target_pan  <= new_target_pan;
             target_tilt <= new_target_tilt;
             angle_pan   <= step_to_new_pan;
