@@ -8,8 +8,8 @@ module button_debounce (
 );
 
     // clock divider
-    // 100MHz -> 100KHz
-    parameter F_COUNT = 100_000_000 / 100_000;
+    // 100MHz -> 1KHz
+    parameter F_COUNT = 100_000_000 / 10_000;
     reg [$clog2(F_COUNT)-1:0] r_counter;
     reg clk_100khz;
 
