@@ -9,7 +9,6 @@ module tb_axis_ctrl;
     logic signed [9:0] delta_x;
     logic signed [8:0] delta_y;
     logic update;
-    logic move_tick;
     logic [7:0] angle_pan;
     logic [7:0] angle_tilt;
 
@@ -19,6 +18,8 @@ module tb_axis_ctrl;
     always #(CLK_PERIOD / 2) clk = ~clk;
 
     axis_ctrl #(
+        .CLK_HZ(1),
+        .MOVE_TICK_HZ(1),
         .PAN_GAIN_NUM(1),
         .PAN_GAIN_DEN(1),
         .TILT_GAIN_NUM(1),
@@ -30,7 +31,6 @@ module tb_axis_ctrl;
         .delta_x   (delta_x),
         .delta_y   (delta_y),
         .update    (update),
-        .move_tick (move_tick),
         .angle_pan (angle_pan),
         .angle_tilt(angle_tilt)
     );
@@ -60,16 +60,13 @@ module tb_axis_ctrl;
         delta_x = dx;
         delta_y = dy;
         update   = 1'b1;
-        move_tick = 1'b0;
         @(posedge clk);
         #1 update = 1'b0;
     endtask
 
     task automatic advance_step;
-        @(negedge clk);
-        move_tick = 1'b1;
         @(posedge clk);
-        #1 move_tick = 1'b0;
+        #1;
     endtask
 
     task automatic apply_reset;
@@ -83,7 +80,6 @@ module tb_axis_ctrl;
         delta_x = '0;
         delta_y = '0;
         update    = 1'b0;
-        move_tick = 1'b0;
 
         apply_reset();
         check_angles(8'd90, 8'd90, "reset initializes both axes");
@@ -130,7 +126,7 @@ module tb_axis_ctrl;
         advance_step();
         check_angles(8'd130, 8'd120, "Y positive final remainder");
 
-        // With neither update nor move_tick, all state must be held.
+        // Once the target is reached, internal movement ticks hold the angle.
         repeat (3) @(posedge clk);
         #1 check_angles(8'd130, 8'd120, "idle cycles hold current angles");
 

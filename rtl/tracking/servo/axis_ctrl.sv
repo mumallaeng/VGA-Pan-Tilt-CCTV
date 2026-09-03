@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
 module axis_ctrl #(
+    parameter integer CLK_HZ            = 100_000_000,
+    parameter integer MOVE_TICK_HZ      = 50,
     // Provisional camera mapping for initial testing only:
     // 320 horizontal pixels ~= 60 degrees, 240 vertical pixels ~= 45 degrees.
     // Replace these values after measuring the actual camera/lens response.
@@ -17,12 +19,14 @@ module axis_ctrl #(
     input  logic signed [9:0] delta_x,
     input  logic signed [8:0] delta_y,
     input  logic              update,
-    input  logic              move_tick,
     output logic        [7:0] angle_pan,
     output logic        [7:0] angle_tilt
 );
 
     localparam logic signed [16:0] MAX_STEP = MAX_STEP_ANGLE;
+    localparam integer MOVE_TICK_CYCLES = CLK_HZ / MOVE_TICK_HZ;
+    localparam integer MOVE_COUNTER_WIDTH =
+        (MOVE_TICK_CYCLES <= 1) ? 1 : $clog2(MOVE_TICK_CYCLES);
 
     logic        [7:0] target_pan;
     logic        [7:0] target_tilt;
@@ -36,6 +40,26 @@ module axis_ctrl #(
     logic        [7:0] step_to_target_tilt;
     logic signed [9:0] pan_delta_angle;
     logic signed [9:0] tilt_delta_angle;
+    logic [MOVE_COUNTER_WIDTH-1:0] move_counter;
+    logic                          move_tick;
+
+    // Motor movement scheduler. This clock-enable pulse only advances the
+    // angle registers; servo_pwm independently generates the 50 Hz PWM.
+    always_ff @(posedge clk or posedge reset) begin
+        if (reset) begin
+            move_counter <= '0;
+            move_tick    <= 1'b0;
+        end else if (MOVE_TICK_CYCLES <= 1) begin
+            move_counter <= '0;
+            move_tick    <= 1'b1;
+        end else if (move_counter == MOVE_TICK_CYCLES - 1) begin
+            move_counter <= '0;
+            move_tick    <= 1'b1;
+        end else begin
+            move_counter <= move_counter + 1'b1;
+            move_tick    <= 1'b0;
+        end
+    end
 
     coord_to_angle #(
         .PAN_GAIN_NUM  (PAN_GAIN_NUM),
