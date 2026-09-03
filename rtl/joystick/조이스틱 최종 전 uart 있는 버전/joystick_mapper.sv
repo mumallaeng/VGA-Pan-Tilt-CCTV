@@ -6,12 +6,12 @@ module joystick_mapper(
     input  logic               i_filtered_data_valid,
     input  logic        [11:0] i_filtered_x,
     input  logic        [11:0] i_filtered_y,
-    output logic signed [ 8:0] joy_motor_x,
-    output logic signed [ 7:0] joy_motor_y
+    output logic signed [ 4:0] joy_motor_x,
+    output logic signed [ 4:0] joy_motor_y
     );
 
-    logic signed [8:0] delta_x;
-    logic signed [7:0] delta_y;
+    logic signed [4:0] delta_x;
+    logic signed [4:0] delta_y;
 
     parameter int unsigned DELTA_MAX = 12'd10;
 
@@ -48,45 +48,45 @@ module joystick_mapper(
     logic [23:0] y_product;
 
     always_comb begin
-        delta_x  = 9'sd0;
+        delta_x  = 5'sd0;
         x_product = 24'd0;
         if (i_filtered_x <= X_MIN) begin
-            delta_x = -9'sd10;
+            delta_x = -5'sd10;
         end else if ((i_filtered_x > X_MIN) && (i_filtered_x < X_DZ_LOW)) begin
             x_product = (X_DZ_LOW - i_filtered_x) * X_LEFT_GAIN;
-            delta_x  = -$signed(x_product[20:12]);
+            delta_x  = -$signed(x_product[16:12]);
         end else if ((i_filtered_x >= X_DZ_LOW) && (i_filtered_x <= X_DZ_HIGH)) begin
-            delta_x = 9'sd0;
+            delta_x = 5'sd0;
         end else if ((i_filtered_x > X_DZ_HIGH) && (i_filtered_x < X_MAX)) begin
             x_product = (i_filtered_x - X_DZ_HIGH) * X_RIGHT_GAIN;
-            delta_x  = $signed(x_product[20:12]);
+            delta_x  = $signed(x_product[16:12]);
         end else begin
-            delta_x = 9'sd10;
+            delta_x = 5'sd10;
         end
     end
 
     always_comb begin
-        delta_y  = 9'sd0;
+        delta_y  = 5'sd0;
         y_product = 24'd0;
         if (i_filtered_y <= Y_MIN) begin
-            delta_y = 8'sd10;
+            delta_y = 5'sd10;
         end else if ((i_filtered_y > Y_MIN) && (i_filtered_y < Y_DZ_LOW)) begin
             y_product = (Y_DZ_LOW - i_filtered_y) * Y_LOW_GAIN;
-            delta_y  = $signed(y_product[19:12]);
+            delta_y  = $signed(y_product[16:12]);
         end else if ((i_filtered_y >= Y_DZ_LOW) && (i_filtered_y <= Y_DZ_HIGH)) begin
-            delta_y = 8'sd0;
+            delta_y = 5'sd0;
         end else if ((i_filtered_y > Y_DZ_HIGH) && (i_filtered_y < Y_MAX)) begin
             y_product = (i_filtered_y - Y_DZ_HIGH) * Y_HIGH_GAIN;
-            delta_y = -$signed(y_product[19:12]);
+            delta_y = -$signed(y_product[16:12]);
         end else begin
-            delta_y = -8'sd10;
+            delta_y = -5'sd10;
         end
     end
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-            joy_motor_x <= 9'sd0;
-            joy_motor_y <= 8'sd0;
+            joy_motor_x <= 5'sd0;
+            joy_motor_y <= 5'sd0;
         end else begin
             if (i_filtered_data_valid) begin
                 joy_motor_x <= delta_x;

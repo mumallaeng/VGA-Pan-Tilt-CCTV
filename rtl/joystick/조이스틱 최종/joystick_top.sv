@@ -8,10 +8,9 @@ module joystick_top (
     input  logic vauxp14,
     input  logic vauxn14,
     input  logic joy_btn,
-    //output logic signed [8:0] joy_motor_x,
-    //output logic signed [7:0] joy_motor_y,
-    output logic manual_en,
-    output logic uart_tx
+    output logic signed [4:0] joy_motor_x,
+    output logic signed [4:0] joy_motor_y,
+    output logic manual_en
 );
 
     logic        [ 4:0] xadc_channel;
@@ -21,10 +20,6 @@ module joystick_top (
     logic               xadc_alarm;
     logic               xadc_eos;
     logic               xadc_busy;
-    // uart 디버그용
-    logic signed [ 8:0] joy_motor_x;
-    logic signed [ 7:0] joy_motor_y;
-    //logic               manual_en;
 
     btn_manual U_BTN_MANUAL (
         .clk      (clk),
@@ -57,14 +52,9 @@ module joystick_top (
         .busy_out   (xadc_busy)
     );
 
-    (* mark_debug = "true" *) logic [11:0] w_filtered_x;
-    (* mark_debug = "true" *) logic [11:0] w_filtered_y;
-    (* mark_debug = "true" *) logic w_filtered_data_valid;
-
-    // ===== uart test =====
-    logic [11:0] w_raw_x;
-    logic [11:0] w_raw_y;
-    // =====================
+    logic [11:0] w_filtered_x;
+    logic [11:0] w_filtered_y;
+    logic w_filtered_data_valid;
 
     joystick_xadc_processor U_JST_XADC_PROCESSOR (
         .clk                  (clk),
@@ -75,10 +65,7 @@ module joystick_top (
         .xadc_eoc             (xadc_eoc),
         .o_filtered_x         (w_filtered_x),
         .o_filtered_y         (w_filtered_y),
-        .o_filtered_data_valid(w_filtered_data_valid),
-        // ===== uart test =====
-        .o_raw_x              (w_raw_x),
-        .o_raw_y              (w_raw_y)
+        .o_filtered_data_valid(w_filtered_data_valid)
     );
 
     joystick_mapper U_JST_MAPPER (
@@ -89,20 +76,6 @@ module joystick_top (
         .i_filtered_y         (w_filtered_y),
         .joy_motor_x          (joy_motor_x),
         .joy_motor_y          (joy_motor_y)
-    );
-
-    joystick_uart_debug U_JST_UART_DBG (
-        .clk          (clk),
-        .rst          (rst),
-        .i_raw_x      (w_raw_x),
-        .i_raw_y      (w_raw_y),
-        .i_filtered_x (w_filtered_x),
-        .i_filtered_y (w_filtered_y),
-        .i_joy_motor_x(joy_motor_x),
-        .i_joy_motor_y(joy_motor_y),
-        .i_manual_en  (manual_en),
-        .o_uart_tx    (uart_tx),
-        .o_debug_busy ()
     );
 
 endmodule
@@ -119,7 +92,7 @@ module btn_manual (
     button_debounce U_BTN_DEBOUNCE (
         .clk  (clk),
         .rst  (rst),
-        .i_btn(~joy_btn),
+        .i_btn(~joy_btn), // active-low
         .o_btn(btn_pulse)
     );
 

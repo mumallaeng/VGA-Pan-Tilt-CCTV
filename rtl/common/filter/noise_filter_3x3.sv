@@ -45,58 +45,46 @@ line_buffer #(.IMG_WIDTH(IMG_WIDTH)) U_LINE_BUFFER(
     logic [X_WIDTH-1:0] row_fill_cnt;    // 이번 줄에서 지금까지 몇 열을 처리했는지
     logic [Y_WIDTH-1:0] valid_row_cnt;   // 지금까지 몇 줄이 완전히 지나갔는지
 
-    logic window_ready;   // 3x3 윈도우가 온전히(9칸 다) 채워졌는지
+    logic window_ready;   // 3x3 윈도우가 온전히 채워졌는지
     logic edge_pixel;     // 화면 가장자리 또는 윈도우 미완성 -> 노이즈로 취급해야 하는지
 
     // 5. out_valid 지연 파이프라인
     logic valid_d1;   // 1단계 지연
 
-    always_ff @(posedge pclk or posedge rst) begin
-        if (rst) begin
-            // ---- 카운터/valid만 리셋. shift register 값들은 어차피 몇 클럭
-            //      지나면 새 값으로 덮어써지므로 굳이 리셋 안 해도 무방 ----
-            row_fill_cnt  <= '0;
-            valid_row_cnt <= '0;
-            valid_d1      <= 1'b0;
-            out_valid     <= 1'b0;
-
-        end else if (red_valid) begin
+	always_ff @(posedge pclk or posedge rst) begin
+	    if (rst) begin
+	        row_fill_cnt  <= '0;
+	        valid_row_cnt <= '0;
+	        valid_d1      <= 1'b0;
+	        out_valid     <= 1'b0;
+	
+	    end else begin
+	        if (red_valid) begin
             // 1) 3x3 shift register 갱신
-            //     각 줄마다 "한 칸 왼쪽으로 밀고, 오른쪽 끝에 새 값 채우기"
-            row2_a <= row2_b;
-            row2_b <= row2_c;
-            row2_c <= line2_val;    // 라인버퍼에서 방금 꺼내온 "2줄 전" 값
-
-            row1_a <= row1_b;
-            row1_b <= row1_c;
-            row1_c <= line1_val;    // 라인버퍼에서 방금 꺼내온 "1줄 전" 값
-
-            row0_a <= row0_b;
-            row0_b <= row0_c;
-            row0_c <= red_mask;     // 지금 막 들어온 현재 줄의 값
-
+	            row2_a <= row2_b; row2_b <= row2_c; row2_c <= line2_val;
+	            row1_a <= row1_b; row1_b <= row1_c; row1_c <= line1_val;
+	            row0_a <= row0_b; row0_b <= row0_c; row0_c <= red_mask;
+	
             // 2) 좌표 지연
-            x_d1    <= pixel_x;
-            y_d1    <= pixel_y;
-            clean_x <= x_d1;
-            clean_y <= (y_d1 == 0) ? 1'b0 : (y_d1 - 1'b1);
-
-            // 3) valid 신호도 데이터(clean_x/y)와 정확히 같은 지연(2클럭)을
-            //     갖도록 동일한 구조로 파이프라인 처리
-            valid_d1    <= 1'b1;
-            out_valid <= valid_d1;
-
-            // 4) 이번 줄 진행 카운트
-            //     한 줄(IMG_WIDTH개)이 끝나면 row_fill_cnt를 리셋하고
-            //     valid_row_cnt(완성된 줄 수)를 1 증가시킴
-            if (pixel_x == IMG_WIDTH - 1) begin
-                row_fill_cnt  <= 1'b0;
-                valid_row_cnt <= valid_row_cnt + 1'b1;
-            end else begin
-                row_fill_cnt <= row_fill_cnt + 1'b1;
-            end
-        end
-    end
+	            x_d1    <= pixel_x;
+	            y_d1    <= pixel_y;
+	            clean_x <= x_d1;
+	            clean_y <= (y_d1 == 0) ? 1'b0 : (y_d1 - 1'b1);
+	
+            // 3) 이번 줄 진행 카운트
+	            if (pixel_x == IMG_WIDTH - 1) begin
+	                row_fill_cnt  <= 1'b0;
+	                valid_row_cnt <= valid_row_cnt + 1'b1;
+	            end else begin
+	                row_fill_cnt <= row_fill_cnt + 1'b1;
+	            end
+	        end
+	
+	        // valid 파이프라인은 red_valid와 무관하게 매 클럭 항상 흘러감
+	        valid_d1  <= red_valid;
+	        out_valid <= valid_d1;
+	    end
+	end
 
     // =========================================================================
     // 6. 경계 판정 (조합논리)

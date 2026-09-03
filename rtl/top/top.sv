@@ -4,7 +4,7 @@ module top (
     input        clk,
     input        rst,
     input  [1:0] vga_sw,
-    input        filter_sw,     // need to check RED filtering is working
+    input        red_filter_en,  // need to check RED filtering is working
     // Camera
     input        ov7670_pclk,
     input        ov7670_vsync,
@@ -150,6 +150,11 @@ module top (
 
     // VGA Frame Reader
     // ---------------------------------------------
+    wire [8:0] img_x;
+    wire [7:0] img_y;
+    wire [3:0] vga_r;
+    wire [3:0] vga_g;
+    wire [3:0] vga_b;
     wire [3:0] original_r;
     wire [3:0] original_g;
     wire [3:0] original_b;
@@ -159,36 +164,70 @@ module top (
     wire quadrant_4_aligned;
 
     vga_frame_reader_v4 U_VGA_FRAME_READER (
-        .clk(clk),
-        .rst(rst),
-        .vga_sw(vga_sw),
-        .vga_x(x_pixel),
-        .vga_y(y_pixel),
-        .video_on(video_on),
-        .box_en(1'b0),  // box_en signal is unabled to test VGA only
-        .fb_raddr(fb_rd_addr),
-        .fb_rdata(fb_rd_data),
-        .vga_r(original_r),
-        .vga_g(original_g),
-        .vga_b(original_b),
-        .pixel_rgb565(display_rgb565),
-        .pixel_valid(display_pixel_valid),
+        .clk               (vga_pclk),
+        .rst               (rst),
+        .vga_sw            (vga_sw),
+        .vga_x             (x_pixel),
+        .vga_y             (y_pixel),
+        .video_on          (video_on),
+        .box_en            (1'b0),
+        .fb_raddr          (fb_rd_addr),
+        .fb_rdata          (fb_rd_data),
+        .img_x             (img_x),
+        .img_y             (img_y),
+        .vga_r             (vga_r),
+        .vga_g             (vga_g),
+        .vga_b             (vga_b),
+        .pixel_rgb565      (display_rgb565),
+        .pixel_valid       (display_pixel_valid),
         .split_mode_aligned(split_mode_aligned),
         .quadrant_4_aligned(quadrant_4_aligned)
     );
 
     // Red filter
     // ---------------------------------------------
-    wire [3:0] mask_r;
-    wire [3:0] mask_g;
-    wire [3:0] mask_b;
+    wire [3:0] red_r;
+    wire [3:0] red_g;
+    wire [3:0] red_b;
     red_color_filter U_RED_COLOR_FILTER (
         .pixel_rgb565(display_rgb565),
         .pixel_valid (display_pixel_valid),
-        .mask_r      (mask_r),
-        .mask_g      (mask_g),
-        .mask_b      (mask_b)
+        .vga_r       (vga_r),
+        .vga_g       (vga_g),
+        .vga_b       (vga_b),
+        .red_mask    (red_mask),
+        .red_valid   (red_valid),
+        .original_r  (original_r),
+        .original_g  (original_g),
+        .original_b  (original_b),
+        .red_r       (red_r),
+        .red_g       (red_g),
+        .red_b       (red_b)
     );
+
+
+    // Noise filter
+    // ---------------------------------------------
+    wire clean_mask;
+    wire [8:0] clean_x;
+    wire [7:0] clean_y;
+    wire out_valid;
+    noise_filter_3x3 U_NOISE_FILTER (
+        .pclk      (vga_pclk),
+        .rst       (rst),
+        .red_valid (red_valid),
+        .red_mask  (red_mask),
+        .pixel_x   (img_x),
+        .pixel_y   (img_y),
+        .clean_mask(clean_mask),
+        .clean_x   (clean_x),
+        .clean_y   (clean_y),
+        .out_valid (out_valid)
+    );
+
+    // Min/Max filter? calculate?
+    // ---------------------------------------------
+    
 
     // Synchronizer to match timing or solve CDC problem
     // Align VGA synchronization with the one-clock frame-buffer read path.
@@ -207,42 +246,28 @@ module top (
     assign h_sync = h_sync_reg[LATENCY-1];
     assign v_sync = v_sync_reg[LATENCY-1];
 
-    // Synchronize the asynchronous display-select switch to the VGA clock.
-    reg filter_sw_meta, filter_sw_sync;
-    always_ff @(posedge vga_pclk or posedge rst) begin
-        if (rst) begin
-            filter_sw_meta <= 1'b0;
-            filter_sw_sync <= 1'b0;
-        end else begin
-            filter_sw_meta <= filter_sw;
-            filter_sw_sync <= filter_sw_meta;
-        end
-    end
 
     // Split mode: Q4 is the red mask and Q1/Q2/Q3 remain original.
     // Other modes: filter_sw selects original or binary red mask globally.
-    reg [3:0] r_port_next, g_port_next, b_port_next;
-    always_comb begin
-        if (split_mode_aligned) begin
-            if (quadrant_4_aligned) begin
-                r_port_next = mask_r;
-                g_port_next = mask_g;
-                b_port_next = mask_b;
-            end else begin
-                r_port_next = original_r;
-                g_port_next = original_g;
-                b_port_next = original_b;
-            end
-        end else if (filter_sw_sync) begin
-            r_port_next = mask_r;
-            g_port_next = mask_g;
-            b_port_next = mask_b;
-        end else begin
-            r_port_next = original_r;
-            g_port_next = original_g;
-            b_port_next = original_b;
-        end
-    end
+    wire [3:0] r_port_next, g_port_next, b_port_next;
+
+    display_control U_DISPLAY_CONTROL (
+        .split_mode_aligned(split_mode_aligned),
+        .quadrant_4_aligned(quadrant_4_aligned),
+        .red_filter_en     (red_filter_en),
+        .out_valid         (out_valid),
+        .clean_mask        (clean_mask),
+        .original_r        (original_r),
+        .original_g        (original_g),
+        .original_b        (original_b),
+        .red_r             (red_r),
+        .red_g             (red_g),
+        .red_b             (red_b),
+        .r_port_next       (r_port_next),
+        .g_port_next       (g_port_next),
+        .b_port_next       (b_port_next)
+    );
+
 
     rgb_out_reg U_RGB_OUT_REG (
         .clk        (clk),
@@ -254,6 +279,49 @@ module top (
         .g_port     (g_port),
         .b_port     (b_port)
     );
+
+endmodule
+
+module display_control (
+    input            split_mode_aligned,
+    input            quadrant_4_aligned,
+    input            red_filter_en,
+    input            out_valid,
+    input            clean_mask,
+    input      [3:0] original_r,
+    input      [3:0] original_g,
+    input      [3:0] original_b,
+    input      [3:0] red_r,
+    input      [3:0] red_g,
+    input      [3:0] red_b,
+    output reg [3:0] r_port_next,
+    output reg [3:0] g_port_next,
+    output reg [3:0] b_port_next
+);
+
+    always_comb begin
+        if (split_mode_aligned) begin
+            if (quadrant_4_aligned) begin
+                r_port_next = red_r & {4{clean_mask}} & {4{out_valid}};
+                g_port_next = red_g & {4{clean_mask}} & {4{out_valid}};
+                b_port_next = red_b & {4{clean_mask}} & {4{out_valid}};
+            end else begin
+                r_port_next = original_r;
+                g_port_next = original_g;
+                b_port_next = original_b;
+            end
+        end else begin
+            if (red_filter_en) begin
+                r_port_next = red_r;
+                g_port_next = red_g;
+                b_port_next = red_b;
+            end else begin
+                r_port_next = original_r;
+                g_port_next = original_g;
+                b_port_next = original_b;
+            end
+        end
+    end
 
 endmodule
 

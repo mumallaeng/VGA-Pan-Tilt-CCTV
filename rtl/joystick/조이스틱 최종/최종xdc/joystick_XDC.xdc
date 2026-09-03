@@ -28,7 +28,7 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 
 
 ## LEDs
-#set_property -dict { PACKAGE_PIN U16   IOSTANDARD LVCMOS33 } [get_ports {led[0]}]
+#set_property -dict { PACKAGE_PIN U16   IOSTANDARD LVCMOS33 } [get_ports {manual_en}]
 #set_property -dict { PACKAGE_PIN E19   IOSTANDARD LVCMOS33 } [get_ports {led[1]}]
 #set_property -dict { PACKAGE_PIN U19   IOSTANDARD LVCMOS33 } [get_ports {led[2]}]
 #set_property -dict { PACKAGE_PIN V19   IOSTANDARD LVCMOS33 } [get_ports {led[3]}]
@@ -72,32 +72,32 @@ set_property -dict {PACKAGE_PIN U18 IOSTANDARD LVCMOS33} [get_ports rst]
 
 
 ##Pmod Header JA
-set_property -dict {PACKAGE_PIN J1 IOSTANDARD LVCMOS33} [get_ports joy_btn]
+set_property -dict {PACKAGE_PIN J1 IOSTANDARD LVCMOS33 PULLUP TRUE} [get_ports joy_btn]
 #set_property -dict { PACKAGE_PIN L2   IOSTANDARD LVCMOS33 } [get_ports {JA[1]}];#Sch name = JA2
 #set_property -dict { PACKAGE_PIN J2   IOSTANDARD LVCMOS33 } [get_ports {JA[2]}];#Sch name = JA3
-set_property -dict { PACKAGE_PIN G2   IOSTANDARD LVCMOS33 } [get_ports pan];#Sch name = JA4
+#set_property -dict { PACKAGE_PIN G2   IOSTANDARD LVCMOS33 } [get_ports {JA[3]}];#Sch name = JA4
 #set_property -dict { PACKAGE_PIN H1   IOSTANDARD LVCMOS33 } [get_ports {JA[4]}];#Sch name = JA7
 #set_property -dict { PACKAGE_PIN K2   IOSTANDARD LVCMOS33 } [get_ports {JA[5]}];#Sch name = JA8
 #set_property -dict { PACKAGE_PIN H2   IOSTANDARD LVCMOS33 } [get_ports {JA[6]}];#Sch name = JA9
-set_property -dict { PACKAGE_PIN G3   IOSTANDARD LVCMOS33 } [get_ports tilt];#Sch name = JA10
+#set_property -dict { PACKAGE_PIN G3   IOSTANDARD LVCMOS33 } [get_ports {JA[7]}];#Sch name = JA10
 
 ##Pmod Header JB
-set_property -dict { PACKAGE_PIN A14 IOSTANDARD LVCMOS33 } [get_ports {r_port[0]}];# JB1 VGA red
-set_property -dict { PACKAGE_PIN A16 IOSTANDARD LVCMOS33 } [get_ports {r_port[1]}];# JB2 VGA red
-set_property -dict { PACKAGE_PIN B15 IOSTANDARD LVCMOS33 } [get_ports {r_port[2]}];# JB3 VGA red
-set_property -dict { PACKAGE_PIN B16 IOSTANDARD LVCMOS33 } [get_ports {r_port[3]}];# JB4 VGA red
-set_property -dict { PACKAGE_PIN A15 IOSTANDARD LVCMOS33 } [get_ports {g_port[0]}];# JB7 VGA green
-set_property -dict { PACKAGE_PIN A17 IOSTANDARD LVCMOS33 } [get_ports {g_port[1]}];# JB8 VGA green
-set_property -dict { PACKAGE_PIN C15 IOSTANDARD LVCMOS33 } [get_ports {g_port[2]}];# JB9 VGA green
-set_property -dict { PACKAGE_PIN C16 IOSTANDARD LVCMOS33 } [get_ports {g_port[3]}];# JB10 VGA green
+#set_property -dict { PACKAGE_PIN A14   IOSTANDARD LVCMOS33 } [get_ports {JB[0]}];#Sch name = JB1
+#set_property -dict { PACKAGE_PIN A16   IOSTANDARD LVCMOS33 } [get_ports {JB[1]}];#Sch name = JB2
+#set_property -dict { PACKAGE_PIN B15   IOSTANDARD LVCMOS33 } [get_ports {JB[2]}];#Sch name = JB3
+#set_property -dict { PACKAGE_PIN B16   IOSTANDARD LVCMOS33 } [get_ports {JB[3]}];#Sch name = JB4
+#set_property -dict { PACKAGE_PIN A15   IOSTANDARD LVCMOS33 } [get_ports {JB[4]}];#Sch name = JB7
+#set_property -dict { PACKAGE_PIN A17   IOSTANDARD LVCMOS33 } [get_ports {JB[5]}];#Sch name = JB8
+#set_property -dict { PACKAGE_PIN C15   IOSTANDARD LVCMOS33 } [get_ports {JB[6]}];#Sch name = JB9
+#set_property -dict { PACKAGE_PIN C16   IOSTANDARD LVCMOS33 } [get_ports {JB[7]}];#Sch name = JB10
 
 ##Pmod Header JC
-set_property -dict { PACKAGE_PIN K17 IOSTANDARD LVCMOS33 } [get_ports {b_port[0]}];# JC1 VGA blue
-set_property -dict { PACKAGE_PIN M18 IOSTANDARD LVCMOS33 } [get_ports {b_port[1]}];# JC2 VGA blue
-set_property -dict { PACKAGE_PIN N17 IOSTANDARD LVCMOS33 } [get_ports {b_port[2]}];# JC3 VGA blue
-set_property -dict { PACKAGE_PIN P18 IOSTANDARD LVCMOS33 } [get_ports {b_port[3]}];# JC4 VGA blue
-set_property -dict { PACKAGE_PIN L17 IOSTANDARD LVCMOS33 } [get_ports h_sync];# JC7 VGA HSync
-set_property -dict { PACKAGE_PIN M19 IOSTANDARD LVCMOS33 } [get_ports v_sync];# JC8 VGA VSync
+#set_property -dict { PACKAGE_PIN K17   IOSTANDARD LVCMOS33 } [get_ports {JC[0]}];#Sch name = JC1
+#set_property -dict { PACKAGE_PIN M18   IOSTANDARD LVCMOS33 } [get_ports {JC[1]}];#Sch name = JC2
+#set_property -dict { PACKAGE_PIN N17   IOSTANDARD LVCMOS33 } [get_ports {JC[2]}];#Sch name = JC3
+#set_property -dict { PACKAGE_PIN P18   IOSTANDARD LVCMOS33 } [get_ports {JC[3]}];#Sch name = JC4
+#set_property -dict { PACKAGE_PIN L17   IOSTANDARD LVCMOS33 } [get_ports {JC[4]}];#Sch name = JC7
+#set_property -dict { PACKAGE_PIN M19   IOSTANDARD LVCMOS33 } [get_ports {JC[5]}];#Sch name = JC8
 #set_property -dict { PACKAGE_PIN P17   IOSTANDARD LVCMOS33 } [get_ports {JC[6]}];#Sch name = JC9
 #set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports {JC[7]}];#Sch name = JC10
 
@@ -131,7 +131,7 @@ set_property -dict {PACKAGE_PIN M3 IOSTANDARD LVCMOS33} [get_ports vauxn14]
 
 ##USB-RS232 Interface
 #set_property -dict { PACKAGE_PIN B18   IOSTANDARD LVCMOS33 } [get_ports RsRx]
-#set_property -dict { PACKAGE_PIN A18   IOSTANDARD LVCMOS33 } [get_ports tx]
+#set_property -dict { PACKAGE_PIN A18   IOSTANDARD LVCMOS33 } [get_ports {uart_tx}]
 
 
 ##USB HID (PS/2)
@@ -157,3 +157,30 @@ set_property CFGBVS VCCO [current_design]
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property CONFIG_MODE SPIx4 [current_design]
+
+#create_debug_core u_ila_0 ila
+#set_property ALL_PROBE_SAME_MU true [get_debug_cores u_ila_0]
+#set_property ALL_PROBE_SAME_MU_CNT 1 [get_debug_cores u_ila_0]
+#set_property C_ADV_TRIGGER false [get_debug_cores u_ila_0]
+#set_property C_DATA_DEPTH 4096 [get_debug_cores u_ila_0]
+#set_property C_EN_STRG_QUAL false [get_debug_cores u_ila_0]
+#set_property C_INPUT_PIPE_STAGES 0 [get_debug_cores u_ila_0]
+#set_property C_TRIGIN_EN false [get_debug_cores u_ila_0]
+#set_property C_TRIGOUT_EN false [get_debug_cores u_ila_0]
+#set_property port_width 1 [get_debug_ports u_ila_0/clk]
+#connect_debug_port u_ila_0/clk [get_nets [list clk_IBUF_BUFG]]
+#set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe0]
+#set_property port_width 12 [get_debug_ports u_ila_0/probe0]
+#connect_debug_port u_ila_0/probe0 [get_nets [list {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[0]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[1]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[2]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[3]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[4]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[5]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[6]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[7]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[8]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[9]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[10]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_x[11]}]]
+#create_debug_port u_ila_0 probe
+#set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe1]
+#set_property port_width 12 [get_debug_ports u_ila_0/probe1]
+#connect_debug_port u_ila_0/probe1 [get_nets [list {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[0]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[1]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[2]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[3]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[4]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[5]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[6]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[7]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[8]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[9]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[10]} {U_JOYSTICK_XADC_PROCESSOR/w_xadc_y[11]}]]
+#create_debug_port u_ila_0 probe
+#set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe2]
+#set_property port_width 1 [get_debug_ports u_ila_0/probe2]
+#connect_debug_port u_ila_0/probe2 [get_nets [list U_JOYSTICK_XADC_PROCESSOR/w_xadc_data_valid]]
+#set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
+#set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
+#set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
+#connect_debug_port dbg_hub/clk [get_nets clk_IBUF_BUFG]
