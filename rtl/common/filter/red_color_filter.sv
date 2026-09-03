@@ -7,15 +7,20 @@ module red_color_filter #(
     parameter logic [7:0] RG_DIFF = 8'd40,
     parameter logic [7:0] RB_DIFF = 8'd40
 ) (
-    input  wire [15:0] pixel_rgb565,
-    input  wire        pixel_valid,
-    output      [ 3:0] mask_r,
-    output      [ 3:0] mask_g,
-    output      [ 3:0] mask_b
+    input  wire  [15:0] pixel_rgb565,
+    input  wire         pixel_valid,
+    input        [ 3:0] vga_r,
+    input        [ 3:0] vga_g,
+    input        [ 3:0] vga_b,
+    output logic        red_mask,
+    output logic        red_valid,
+    output       [ 3:0] original_r,
+    output       [ 3:0] original_g,
+    output       [ 3:0] original_b,
+    output       [ 3:0] red_r,
+    output       [ 3:0] red_g,
+    output       [ 3:0] red_b
 );
-    // red mask & valid signal
-    logic red_mask;
-    logic red_valid;
     //-------------------------------------------------
     // RGB565 extraction
     //-------------------------------------------------
@@ -73,7 +78,12 @@ module red_color_filter #(
     wire mask_en;
     assign mask_en = red_valid & red_mask;
 
-    assign mask_r  = {4{mask_en}};
-    assign mask_g  = {4{mask_en}};
-    assign mask_b  = {4{mask_en}};
+    assign red_r = {4{mask_en}};
+    assign red_g = {4{mask_en}};
+    assign red_b = {4{mask_en}};
+
+    assign original_r = vga_r;
+    assign original_g = vga_g;
+    assign original_b = vga_b;
+
 endmodule

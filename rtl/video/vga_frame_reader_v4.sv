@@ -2,8 +2,9 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // Engineer: Jong.W.Park
+// Engineer: Dong.H.Kim
 // Create Date: 2026/09/01 07:41:40
-// Module Name: vga_frame_reader_v3
+// Module Name: vga_frame_reader_v4
 //
 //   Reads a 320x240 RGB565 frame buffer and displays it on VGA.
 //   Also provides the exact RGB565 pixel stream used for VGA display
