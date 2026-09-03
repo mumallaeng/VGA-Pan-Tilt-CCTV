@@ -1,9 +1,9 @@
 `timescale 1ns / 1ps
 
 module axis_ctrl #(
-    parameter integer PAN_GAIN_NUM    = 0,
+    parameter integer PAN_GAIN_NUM    = 1,
     parameter integer PAN_GAIN_DEN    = 1,
-    parameter integer TILT_GAIN_NUM   = 0,
+    parameter integer TILT_GAIN_NUM   = 1,
     parameter integer TILT_GAIN_DEN   = 1,
     parameter integer PAN_DEADZONE    = 0,
     parameter integer TILT_DEADZONE   = 0,

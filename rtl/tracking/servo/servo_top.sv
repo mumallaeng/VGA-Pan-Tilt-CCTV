@@ -3,9 +3,9 @@
 module servo_top #(
     parameter integer CLK_HZ             = 100_000_000,
     parameter integer MOVE_TICK_HZ       = 50,
-    parameter integer PAN_GAIN_NUM       = 0,
+    parameter integer PAN_GAIN_NUM       = 1,
     parameter integer PAN_GAIN_DEN       = 1,
-    parameter integer TILT_GAIN_NUM      = 0,
+    parameter integer TILT_GAIN_NUM      = 1,
     parameter integer TILT_GAIN_DEN      = 1,
     parameter integer PAN_DEADZONE       = 0,
     parameter integer TILT_DEADZONE      = 0,
