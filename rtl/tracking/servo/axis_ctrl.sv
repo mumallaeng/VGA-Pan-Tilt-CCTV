@@ -1,10 +1,13 @@
 `timescale 1ns / 1ps
 
 module axis_ctrl #(
-    parameter integer PAN_GAIN_NUM    = 0,
-    parameter integer PAN_GAIN_DEN    = 1,
-    parameter integer TILT_GAIN_NUM   = 0,
-    parameter integer TILT_GAIN_DEN   = 1,
+    // Provisional camera mapping for initial testing only:
+    // 320 horizontal pixels ~= 60 degrees, 240 vertical pixels ~= 45 degrees.
+    // Replace these values after measuring the actual camera/lens response.
+    parameter integer PAN_GAIN_NUM    = 60,
+    parameter integer PAN_GAIN_DEN    = 320,
+    parameter integer TILT_GAIN_NUM   = 45,
+    parameter integer TILT_GAIN_DEN   = 240,
     parameter integer PAN_DEADZONE    = 0,
     parameter integer TILT_DEADZONE   = 0,
     parameter integer MAX_STEP_ANGLE = 30

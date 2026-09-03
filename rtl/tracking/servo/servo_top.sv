@@ -3,10 +3,11 @@
 module servo_top #(
     parameter integer CLK_HZ             = 100_000_000,
     parameter integer MOVE_TICK_HZ       = 50,
-    parameter integer PAN_GAIN_NUM       = 0,
-    parameter integer PAN_GAIN_DEN       = 1,
-    parameter integer TILT_GAIN_NUM      = 0,
-    parameter integer TILT_GAIN_DEN      = 1,
+    // Provisional values for a 320x240 image. Calibrate these on hardware.
+    parameter integer PAN_GAIN_NUM       = 60,
+    parameter integer PAN_GAIN_DEN       = 320,
+    parameter integer TILT_GAIN_NUM      = 45,
+    parameter integer TILT_GAIN_DEN      = 240,
     parameter integer PAN_DEADZONE       = 0,
     parameter integer TILT_DEADZONE      = 0,
     parameter integer MAX_STEP_ANGLE     = 30
