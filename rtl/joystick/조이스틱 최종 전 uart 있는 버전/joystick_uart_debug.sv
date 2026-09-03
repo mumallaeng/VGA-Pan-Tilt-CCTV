@@ -14,8 +14,8 @@ module joystick_uart_debug #(
     input  logic        [11:0] i_filtered_x,
     input  logic        [11:0] i_filtered_y,
 
-    input  logic signed [ 8:0] i_joy_motor_x,
-    input  logic signed [ 7:0] i_joy_motor_y,
+    input  logic signed [ 4:0] i_joy_motor_x,
+    input  logic signed [ 4:0] i_joy_motor_y,
     input  logic               i_manual_en,
 
     output logic               o_uart_tx,
