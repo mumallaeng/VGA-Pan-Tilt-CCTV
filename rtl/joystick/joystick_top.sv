@@ -40,6 +40,7 @@ module joystick_top (
         .vauxn6     (vauxn6),
         .vauxp14    (vauxp14),
         .vauxn14    (vauxn14),
+        
         .channel_out(xadc_channel),
         .do_out     (xadc_out_data),
         .drdy_out   (xadc_drdy),
