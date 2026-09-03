@@ -10,7 +10,7 @@ module joystick_top (
     input  logic joy_btn,
     //output logic signed [8:0] joy_motor_x,
     //output logic signed [7:0] joy_motor_y,
-    //output logic manual_en,
+    output logic manual_en,
     output logic uart_tx
 );
 
@@ -24,7 +24,7 @@ module joystick_top (
     // uart 디버그용
     logic signed [ 8:0] joy_motor_x;
     logic signed [ 7:0] joy_motor_y;
-    logic               manual_en;
+    //logic               manual_en;
 
     btn_manual U_BTN_MANUAL (
         .clk      (clk),
@@ -126,8 +126,11 @@ module btn_manual (
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             manual_en <= 1'b0;  // 0: 자동 모드
-        end else if (btn_pulse) begin
-            manual_en <= ~manual_en;  // 누를 때마다 토글
+        end else begin
+            if (btn_pulse) begin
+                manual_en <= ~manual_en;  // 누를 때마다 토글
+            end 
         end
+        
     end
 endmodule
