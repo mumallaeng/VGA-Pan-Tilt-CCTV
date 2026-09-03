@@ -150,6 +150,8 @@ module top (
 
     // VGA Frame Reader
     // ---------------------------------------------
+    wire [8:0] img_x;
+    wire [7:0] img_y;
     wire [3:0] vga_r;
     wire [3:0] vga_g;
     wire [3:0] vga_b;
@@ -171,6 +173,8 @@ module top (
         .box_en            (1'b0),
         .fb_raddr          (fb_rd_addr),
         .fb_rdata          (fb_rd_data),
+        .img_x             (img_x),
+        .img_y             (img_y),
         .vga_r             (vga_r),
         .vga_g             (vga_g),
         .vga_b             (vga_b),
@@ -213,13 +217,17 @@ module top (
         .rst       (rst),
         .red_valid (red_valid),
         .red_mask  (red_mask),
-        .pixel_x   (x_pixel[8:0]),
-        .pixel_y   (y_pixel[7:0]),
+        .pixel_x   (img_x),
+        .pixel_y   (img_y),
         .clean_mask(clean_mask),
         .clean_x   (clean_x),
         .clean_y   (clean_y),
         .out_valid (out_valid)
     );
+
+    // Min/Max filter? calculate?
+    // ---------------------------------------------
+    
 
     // Synchronizer to match timing or solve CDC problem
     // Align VGA synchronization with the one-clock frame-buffer read path.
@@ -247,6 +255,8 @@ module top (
         .split_mode_aligned(split_mode_aligned),
         .quadrant_4_aligned(quadrant_4_aligned),
         .red_filter_en     (red_filter_en),
+        .out_valid         (out_valid),
+        .clean_mask        (clean_mask),
         .original_r        (original_r),
         .original_g        (original_g),
         .original_b        (original_b),
@@ -276,6 +286,8 @@ module display_control (
     input            split_mode_aligned,
     input            quadrant_4_aligned,
     input            red_filter_en,
+    input            out_valid,
+    input            clean_mask,
     input      [3:0] original_r,
     input      [3:0] original_g,
     input      [3:0] original_b,
@@ -290,9 +302,9 @@ module display_control (
     always_comb begin
         if (split_mode_aligned) begin
             if (quadrant_4_aligned) begin
-                r_port_next = red_r;
-                g_port_next = red_g;
-                b_port_next = red_b;
+                r_port_next = red_r & {4{clean_mask}} & {4{out_valid}};
+                g_port_next = red_g & {4{clean_mask}} & {4{out_valid}};
+                b_port_next = red_b & {4{clean_mask}} & {4{out_valid}};
             end else begin
                 r_port_next = original_r;
                 g_port_next = original_g;

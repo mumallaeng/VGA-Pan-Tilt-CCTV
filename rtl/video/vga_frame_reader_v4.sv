@@ -29,6 +29,9 @@ module vga_frame_reader_v4 #(
     // Frame-buffer read side
     output logic [ADDR_WIDTH-1:0] fb_raddr,
     input  wire  [          15:0] fb_rdata,
+    // img pixel coordinate data
+    output reg   [           8:0] img_x,
+    output reg   [           7:0] img_y,
     // VGA RGB444 output
     output logic [           3:0] vga_r,
     output logic [           3:0] vga_g,
@@ -43,8 +46,8 @@ module vga_frame_reader_v4 #(
 
     localparam FRAME_SIZE = IMG_HEIGHT * IMG_WIDTH;
 
-    logic [           8:0] img_x;  // 0-319
-    logic [           7:0] img_y;  // 0-239
+    // logic [           8:0] img_x;  // 0-319
+    // logic [           7:0] img_y;  // 0-239
     // Valid for requesting a pixel from the frame buffer.
     logic                  pixel_req_valid;
     // Delayed valid aligned with fb_rdata.
