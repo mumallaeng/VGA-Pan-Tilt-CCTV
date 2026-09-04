@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
-module servo_top (
+module servo_top #(
+    parameter integer CLK_HZ = 100_000_000,
+    parameter integer MANUAL_CONTROL_HZ = 50
+) (
     input  logic              clk,
     input  logic              rst,
     input  logic signed [9:0] frame_dx,
@@ -10,17 +13,24 @@ module servo_top (
     input  logic              mode,
     input  logic signed [4:0] joy_dx,
     input  logic signed [4:0] joy_dy,
+    input  logic              joy_valid,
+    input  logic              joy_done,
     output logic              pwm_pan,
     output logic              pwm_tilt
 );
 
     logic signed [9:0] delta_x;
     logic signed [8:0] delta_y;
-    logic signed [7:0] pan_angle;
-    logic signed [7:0] tilt_angle;
+    (* mark_debug = "true" *) logic [7:0] pan_angle;
+    (* mark_debug = "true" *) logic [7:0] tilt_angle;
     logic              sel_done;
 
-    ctrl_mode_mux u_ctrl_mode_mux (
+    ctrl_mode_mux #(
+        .CLK_HZ           (CLK_HZ),
+        .MANUAL_CONTROL_HZ(MANUAL_CONTROL_HZ)
+    ) u_ctrl_mode_mux (
+        .clk        (clk),
+        .rst        (rst),
         .frame_dx   (frame_dx),
         .frame_dy   (frame_dy),
         .frame_valid(frame_valid),
@@ -28,6 +38,8 @@ module servo_top (
         .mode       (mode),
         .joy_dx     (joy_dx),
         .joy_dy     (joy_dy),
+        .joy_valid  (joy_valid),
+        .joy_done   (joy_done),
         .delta_x    (delta_x),
         .delta_y    (delta_y),
         .sel_done   (sel_done)
@@ -43,14 +55,18 @@ module servo_top (
         .angle_tilt(tilt_angle)
     );
 
-    servo_pwm u_servo_pwm_pan (
+    servo_pwm #(
+        .CLK_HZ(CLK_HZ)
+    ) u_servo_pwm_pan (
         .clk  (clk),
         .rst  (rst),
         .angle(pan_angle),
         .pwm  (pwm_pan)
     );
 
-    servo_pwm u_servo_pwm_tilt (
+    servo_pwm #(
+        .CLK_HZ(CLK_HZ)
+    ) u_servo_pwm_tilt (
         .clk  (clk),
         .rst  (rst),
         .angle(tilt_angle),
@@ -60,7 +76,10 @@ module servo_top (
 endmodule
 
 
-module servo_joystick_top (
+module servo_joystick_top #(
+    parameter integer CLK_HZ = 100_000_000,
+    parameter integer MANUAL_CONTROL_HZ = 50
+) (
     input logic clk,
     input logic rst,
 
@@ -68,15 +87,17 @@ module servo_joystick_top (
     input logic vauxn6,
     input logic vauxp14,
     input logic vauxn14,
-    input logic joy_btn,
+    (* mark_debug = "true" *) input logic joy_btn,
 
     output logic pwm_pan,
     output logic pwm_tilt
 );
 
-    logic signed [4:0] joy_dx;
-    logic signed [4:0] joy_dy;
-    logic              manual_en;
+    (* mark_debug = "true" *) logic signed [4:0] joy_dx;
+    (* mark_debug = "true" *) logic signed [4:0] joy_dy;
+    (* mark_debug = "true" *) logic              joy_valid;
+    (* mark_debug = "true" *) logic              joy_done;
+    (* mark_debug = "true" *) logic manual_en;
 
     joystick_top u_joystick (
         .clk        (clk),
@@ -88,10 +109,15 @@ module servo_joystick_top (
         .joy_btn    (joy_btn),
         .joy_motor_x(joy_dx),
         .joy_motor_y(joy_dy),
+        .joy_valid  (joy_valid),
+        .joy_done   (joy_done),
         .manual_en  (manual_en)
     );
 
-    servo_top u_servo (
+    servo_top #(
+        .CLK_HZ           (CLK_HZ),
+        .MANUAL_CONTROL_HZ(MANUAL_CONTROL_HZ)
+    ) u_servo (
         .clk(clk),
         .rst(rst),
 
@@ -100,11 +126,13 @@ module servo_joystick_top (
         .frame_valid(1'b0),
         .frame_done (1'b0),
 
-        // ctrl_mode_mux의 수동 모드
-        .mode(1'b1),
+        // manual mode enable comes from the joystick button toggle
+        .mode(manual_en),
 
         .joy_dx(joy_dx),
         .joy_dy(joy_dy),
+        .joy_valid(joy_valid),
+        .joy_done(joy_done),
 
         .pwm_pan (pwm_pan),
         .pwm_tilt(pwm_tilt)

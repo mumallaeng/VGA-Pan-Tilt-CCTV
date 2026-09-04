@@ -14,7 +14,7 @@ module servo_pwm #(
 );
 
     logic [$clog2(PERIOD)-1:0] counter;
-    logic [ $clog2(PWM_MAX):0] high;
+    logic [ $clog2(PWM_MAX):0] high = PWM_MIN + 90 * CNT_PER_DEGREE;
 
     assign pwm = (counter < high) ? 1'b1 : 1'b0;  // PWM output signal
 

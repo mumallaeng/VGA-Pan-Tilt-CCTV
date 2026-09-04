@@ -12,8 +12,8 @@ module axis_ctrl #(
     input  logic signed [9:0] delta_x,
     input  logic signed [8:0] delta_y,
     input  logic              update,
-    output logic        [7:0] angle_pan,
-    output logic        [7:0] angle_tilt
+    output logic        [7:0] angle_pan  = 8'd90,
+    output logic        [7:0] angle_tilt = 8'd90
 );
 
     localparam logic signed [16:0] MAX_STEP = MAX_STEP_ANGLE;
@@ -23,8 +23,8 @@ module axis_ctrl #(
         MOVE_TICK_CYCLES
     );
 
-    logic        [                   7:0] target_pan;
-    logic        [                   7:0] target_tilt;
+    logic        [                   7:0] target_pan  = 8'd90;
+    logic        [                   7:0] target_tilt = 8'd90;
     logic signed [                  16:0] requested_pan;
     logic signed [                  16:0] requested_tilt;
     logic        [                   7:0] new_target_pan;
@@ -33,9 +33,9 @@ module axis_ctrl #(
     logic        [                   7:0] step_to_new_tilt;
     logic        [                   7:0] step_to_target_pan;
     logic        [                   7:0] step_to_target_tilt;
-    logic signed [                   9:0] pan_delta_angle;
-    logic signed [                   9:0] tilt_delta_angle;
-    logic                                 angle_valid;
+    (* mark_debug = "true" *) logic signed [9:0] pan_delta_angle;
+    (* mark_debug = "true" *) logic signed [9:0] tilt_delta_angle;
+    (* mark_debug = "true" *) logic              angle_valid;
     logic        [MOVE_COUNTER_WIDTH-1:0] move_counter;
     logic                                 move_tick;
 

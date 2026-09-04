@@ -10,13 +10,15 @@ module joystick_top (
     input  logic joy_btn,
     output logic signed [4:0] joy_motor_x,
     output logic signed [4:0] joy_motor_y,
+    output logic              joy_valid,
+    output logic              joy_done,
     output logic manual_en
 );
 
-    logic        [ 4:0] xadc_channel;
-    logic        [15:0] xadc_out_data;
-    logic               xadc_eoc;
-    logic               xadc_drdy;
+    (* mark_debug = "true" *) logic        [ 4:0] xadc_channel;
+    (* mark_debug = "true" *) logic        [15:0] xadc_out_data;
+    (* mark_debug = "true" *) logic               xadc_eoc;
+    (* mark_debug = "true" *) logic               xadc_drdy;
     logic               xadc_alarm;
     logic               xadc_eos;
     logic               xadc_busy;
@@ -52,9 +54,9 @@ module joystick_top (
         .busy_out   (xadc_busy)
     );
 
-    logic [11:0] w_filtered_x;
-    logic [11:0] w_filtered_y;
-    logic w_filtered_data_valid;
+    (* mark_debug = "true" *) logic [11:0] w_filtered_x;
+    (* mark_debug = "true" *) logic [11:0] w_filtered_y;
+    (* mark_debug = "true" *) logic w_filtered_data_valid;
 
     joystick_xadc_processor U_JST_XADC_PROCESSOR (
         .clk                  (clk),
@@ -77,6 +79,17 @@ module joystick_top (
         .joy_motor_x          (joy_motor_x),
         .joy_motor_y          (joy_motor_y)
     );
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            joy_valid <= 1'b0;
+            joy_done  <= 1'b0;
+        end else begin
+            joy_done <= w_filtered_data_valid;
+            if (w_filtered_data_valid)
+                joy_valid <= 1'b1;
+        end
+    end
 
 endmodule
 

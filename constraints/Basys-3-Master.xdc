@@ -75,11 +75,11 @@ set_property -dict {PACKAGE_PIN U18 IOSTANDARD LVCMOS33} [get_ports rst]
 set_property -dict {PACKAGE_PIN J1 IOSTANDARD LVCMOS33} [get_ports joy_btn]
 #set_property -dict { PACKAGE_PIN L2   IOSTANDARD LVCMOS33 } [get_ports {JA[1]}];#Sch name = JA2
 #set_property -dict { PACKAGE_PIN J2   IOSTANDARD LVCMOS33 } [get_ports {JA[2]}];#Sch name = JA3
-set_property -dict { PACKAGE_PIN G2   IOSTANDARD LVCMOS33 } [get_ports pwm_pan];#Sch name = JA4
+set_property -dict {PACKAGE_PIN G2 IOSTANDARD LVCMOS33} [get_ports pwm_pan]
 #set_property -dict { PACKAGE_PIN H1   IOSTANDARD LVCMOS33 } [get_ports {JA[4]}];#Sch name = JA7
 #set_property -dict { PACKAGE_PIN K2   IOSTANDARD LVCMOS33 } [get_ports {JA[5]}];#Sch name = JA8
 #set_property -dict { PACKAGE_PIN H2   IOSTANDARD LVCMOS33 } [get_ports {JA[6]}];#Sch name = JA9
-set_property -dict { PACKAGE_PIN G3   IOSTANDARD LVCMOS33 } [get_ports pwm_tilt];#Sch name = JA10
+set_property -dict {PACKAGE_PIN G3 IOSTANDARD LVCMOS33} [get_ports pwm_tilt]
 
 ##Pmod Header JB
 # set_property -dict { PACKAGE_PIN A14 IOSTANDARD LVCMOS33 } [get_ports {r_port[0]}];# JB1 VGA red
@@ -157,3 +157,110 @@ set_property CFGBVS VCCO [current_design]
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property CONFIG_MODE SPIx4 [current_design]
+
+create_debug_core u_ila_0 ila
+set_property ALL_PROBE_SAME_MU true [get_debug_cores u_ila_0]
+set_property ALL_PROBE_SAME_MU_CNT 1 [get_debug_cores u_ila_0]
+set_property C_ADV_TRIGGER false [get_debug_cores u_ila_0]
+set_property C_DATA_DEPTH 4096 [get_debug_cores u_ila_0]
+set_property C_EN_STRG_QUAL false [get_debug_cores u_ila_0]
+set_property C_INPUT_PIPE_STAGES 1 [get_debug_cores u_ila_0]
+set_property C_TRIGIN_EN false [get_debug_cores u_ila_0]
+set_property C_TRIGOUT_EN false [get_debug_cores u_ila_0]
+set_property port_width 1 [get_debug_ports u_ila_0/clk]
+connect_debug_port u_ila_0/clk [get_nets [list clk_IBUF_BUFG]]
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe0]
+set_property port_width 12 [get_debug_ports u_ila_0/probe0]
+connect_debug_port u_ila_0/probe0 [get_nets [list {u_joystick/w_filtered_y[0]} {u_joystick/w_filtered_y[1]} {u_joystick/w_filtered_y[2]} {u_joystick/w_filtered_y[3]} {u_joystick/w_filtered_y[4]} {u_joystick/w_filtered_y[5]} {u_joystick/w_filtered_y[6]} {u_joystick/w_filtered_y[7]} {u_joystick/w_filtered_y[8]} {u_joystick/w_filtered_y[9]} {u_joystick/w_filtered_y[10]} {u_joystick/w_filtered_y[11]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe1]
+set_property port_width 12 [get_debug_ports u_ila_0/probe1]
+connect_debug_port u_ila_0/probe1 [get_nets [list {u_joystick/w_filtered_x[0]} {u_joystick/w_filtered_x[1]} {u_joystick/w_filtered_x[2]} {u_joystick/w_filtered_x[3]} {u_joystick/w_filtered_x[4]} {u_joystick/w_filtered_x[5]} {u_joystick/w_filtered_x[6]} {u_joystick/w_filtered_x[7]} {u_joystick/w_filtered_x[8]} {u_joystick/w_filtered_x[9]} {u_joystick/w_filtered_x[10]} {u_joystick/w_filtered_x[11]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe2]
+set_property port_width 5 [get_debug_ports u_ila_0/probe2]
+connect_debug_port u_ila_0/probe2 [get_nets [list {u_joystick/xadc_channel[0]} {u_joystick/xadc_channel[1]} {u_joystick/xadc_channel[2]} {u_joystick/xadc_channel[3]} {u_joystick/xadc_channel[4]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe3]
+set_property port_width 16 [get_debug_ports u_ila_0/probe3]
+connect_debug_port u_ila_0/probe3 [get_nets [list {u_joystick/xadc_out_data[0]} {u_joystick/xadc_out_data[1]} {u_joystick/xadc_out_data[2]} {u_joystick/xadc_out_data[3]} {u_joystick/xadc_out_data[4]} {u_joystick/xadc_out_data[5]} {u_joystick/xadc_out_data[6]} {u_joystick/xadc_out_data[7]} {u_joystick/xadc_out_data[8]} {u_joystick/xadc_out_data[9]} {u_joystick/xadc_out_data[10]} {u_joystick/xadc_out_data[11]} {u_joystick/xadc_out_data[12]} {u_joystick/xadc_out_data[13]} {u_joystick/xadc_out_data[14]} {u_joystick/xadc_out_data[15]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe4]
+set_property port_width 10 [get_debug_ports u_ila_0/probe4]
+connect_debug_port u_ila_0/probe4 [get_nets [list {u_servo/u_axis_ctrl/tilt_delta_angle[0]} {u_servo/u_axis_ctrl/tilt_delta_angle[1]} {u_servo/u_axis_ctrl/tilt_delta_angle[2]} {u_servo/u_axis_ctrl/tilt_delta_angle[3]} {u_servo/u_axis_ctrl/tilt_delta_angle[4]} {u_servo/u_axis_ctrl/tilt_delta_angle[5]} {u_servo/u_axis_ctrl/tilt_delta_angle[6]} {u_servo/u_axis_ctrl/tilt_delta_angle[7]} {u_servo/u_axis_ctrl/tilt_delta_angle[8]} {u_servo/u_axis_ctrl/tilt_delta_angle[9]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe5]
+set_property port_width 8 [get_debug_ports u_ila_0/probe5]
+connect_debug_port u_ila_0/probe5 [get_nets [list {u_servo/pan_angle[0]} {u_servo/pan_angle[1]} {u_servo/pan_angle[2]} {u_servo/pan_angle[3]} {u_servo/pan_angle[4]} {u_servo/pan_angle[5]} {u_servo/pan_angle[6]} {u_servo/pan_angle[7]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe6]
+set_property port_width 8 [get_debug_ports u_ila_0/probe6]
+connect_debug_port u_ila_0/probe6 [get_nets [list {u_servo/tilt_angle[0]} {u_servo/tilt_angle[1]} {u_servo/tilt_angle[2]} {u_servo/tilt_angle[3]} {u_servo/tilt_angle[4]} {u_servo/tilt_angle[5]} {u_servo/tilt_angle[6]} {u_servo/tilt_angle[7]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe7]
+set_property port_width 5 [get_debug_ports u_ila_0/probe7]
+connect_debug_port u_ila_0/probe7 [get_nets [list {joy_dx[0]} {joy_dx[1]} {joy_dx[2]} {joy_dx[3]} {joy_dx[4]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe8]
+set_property port_width 10 [get_debug_ports u_ila_0/probe8]
+connect_debug_port u_ila_0/probe8 [get_nets [list {u_servo/u_axis_ctrl/pan_delta_angle[0]} {u_servo/u_axis_ctrl/pan_delta_angle[1]} {u_servo/u_axis_ctrl/pan_delta_angle[2]} {u_servo/u_axis_ctrl/pan_delta_angle[3]} {u_servo/u_axis_ctrl/pan_delta_angle[4]} {u_servo/u_axis_ctrl/pan_delta_angle[5]} {u_servo/u_axis_ctrl/pan_delta_angle[6]} {u_servo/u_axis_ctrl/pan_delta_angle[7]} {u_servo/u_axis_ctrl/pan_delta_angle[8]} {u_servo/u_axis_ctrl/pan_delta_angle[9]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe9]
+set_property port_width 5 [get_debug_ports u_ila_0/probe9]
+connect_debug_port u_ila_0/probe9 [get_nets [list {joy_dy[0]} {joy_dy[1]} {joy_dy[2]} {joy_dy[3]} {joy_dy[4]}]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe10]
+set_property port_width 1 [get_debug_ports u_ila_0/probe10]
+connect_debug_port u_ila_0/probe10 [get_nets [list u_servo/u_axis_ctrl/angle_valid]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe11]
+set_property port_width 1 [get_debug_ports u_ila_0/probe11]
+connect_debug_port u_ila_0/probe11 [get_nets [list u_servo/u_ctrl_mode_mux/control_tick]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe12]
+set_property port_width 1 [get_debug_ports u_ila_0/probe12]
+connect_debug_port u_ila_0/probe12 [get_nets [list u_servo/u_ctrl_mode_mux/control_tick__0]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe13]
+set_property port_width 1 [get_debug_ports u_ila_0/probe13]
+connect_debug_port u_ila_0/probe13 [get_nets [list joy_btn_IBUF]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe14]
+set_property port_width 1 [get_debug_ports u_ila_0/probe14]
+connect_debug_port u_ila_0/probe14 [get_nets [list joy_done]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe15]
+set_property port_width 1 [get_debug_ports u_ila_0/probe15]
+connect_debug_port u_ila_0/probe15 [get_nets [list joy_valid]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe16]
+set_property port_width 1 [get_debug_ports u_ila_0/probe16]
+connect_debug_port u_ila_0/probe16 [get_nets [list manual_en]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe17]
+set_property port_width 1 [get_debug_ports u_ila_0/probe17]
+connect_debug_port u_ila_0/probe17 [get_nets [list u_joystick/U_XADC/reset_in]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe18]
+set_property port_width 1 [get_debug_ports u_ila_0/probe18]
+connect_debug_port u_ila_0/probe18 [get_nets [list rst_IBUF]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe19]
+set_property port_width 1 [get_debug_ports u_ila_0/probe19]
+connect_debug_port u_ila_0/probe19 [get_nets [list u_servo/u_ctrl_mode_mux/sel_done]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe20]
+set_property port_width 1 [get_debug_ports u_ila_0/probe20]
+connect_debug_port u_ila_0/probe20 [get_nets [list u_joystick/w_filtered_data_valid]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe21]
+set_property port_width 1 [get_debug_ports u_ila_0/probe21]
+connect_debug_port u_ila_0/probe21 [get_nets [list u_joystick/xadc_drdy]]
+create_debug_port u_ila_0 probe
+set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports u_ila_0/probe22]
+set_property port_width 1 [get_debug_ports u_ila_0/probe22]
+connect_debug_port u_ila_0/probe22 [get_nets [list u_joystick/xadc_eoc]]
+set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
+set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
+set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
+connect_debug_port dbg_hub/clk [get_nets clk_IBUF_BUFG]

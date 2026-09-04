@@ -31,7 +31,7 @@ module button_debounce (
     // syncronizer
     reg [7:0] sync_reg, sync_next;
     reg  edge_reg;
-    wire debounce;
+    reg  debounce;
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -48,8 +48,17 @@ module button_debounce (
         //sync_next = {sync_reg[6:0], i_btn};
     end
 
-    // 8input to 1output and gate
-    assign debounce = &sync_reg;
+    // debounced level with hysteresis:
+    // set when all 8 samples are 1, clear when all 8 are 0, hold otherwise.
+    // prevents contact chatter during a hold from producing extra o_btn pulses.
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            debounce <= 1'b0;
+        end else if (clk_100khz) begin
+            if (&sync_reg) debounce <= 1'b1;
+            else if (~|sync_reg) debounce <= 1'b0;
+        end
+    end
 
     // rising edge detect
     always_ff @(posedge clk or posedge rst) begin
