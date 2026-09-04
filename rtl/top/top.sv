@@ -151,7 +151,7 @@ module top (
     // VGA Frame Reader
     // ---------------------------------------------
     wire box_en_raw;
-    reg  box_en_aligned;
+    reg box_en_aligned;
     wire [8:0] img_x;
     wire [7:0] img_y;
     wire [3:0] vga_r;
@@ -191,20 +191,20 @@ module top (
     wire [3:0] red_r;
     wire [3:0] red_g;
     wire [3:0] red_b;
-    red_color_filter U_RED_COLOR_FILTER (
+    green_color_filter U_RED_COLOR_FILTER (
         .pixel_rgb565(display_rgb565),
         .pixel_valid (display_pixel_valid),
         .vga_r       (vga_r),
         .vga_g       (vga_g),
         .vga_b       (vga_b),
-        .red_mask    (red_mask),
-        .red_valid   (red_valid),
+        .green_mask  (red_mask),
+        .green_valid (red_valid),
         .original_r  (original_r),
         .original_g  (original_g),
         .original_b  (original_b),
-        .red_r       (red_r),
-        .red_g       (red_g),
-        .red_b       (red_b)
+        .green_r     (red_r),
+        .green_g     (red_g),
+        .green_b     (red_b)
     );
 
 

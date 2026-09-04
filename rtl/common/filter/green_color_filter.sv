@@ -1,6 +1,7 @@
 module green_color_filter #(
     // Initial threshold values; tune using the real OV7670 image.
-    parameter logic [7:0] G_MIN   = 8'b1001_1110,
+    // parameter logic [7:0] G_MIN   = 8'b1001_1010,
+    parameter logic [7:0] G_MIN   = 8'b1000_0000,
     parameter logic [7:0] GR_DIFF = 8'd40,
     parameter logic [7:0] GB_DIFF = 8'd40
 ) (

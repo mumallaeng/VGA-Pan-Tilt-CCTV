@@ -3,7 +3,7 @@
 module min_max_find #(
     parameter int IMG_WIDTH     = 320,
     parameter int IMG_HEIGHT    = 240,
-    parameter int MIN_RED_COUNT = 5,
+    parameter int MIN_RED_COUNT = 10,
     parameter int COUNT_WIDTH   = $clog2(MIN_RED_COUNT + 1)
 ) (
     input  logic       pclk,
