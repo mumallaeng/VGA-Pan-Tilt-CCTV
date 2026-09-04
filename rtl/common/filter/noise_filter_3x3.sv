@@ -1,36 +1,33 @@
 `timescale 1ns / 1ps
-
+// 3x3 majority filter (제로패딩 방식) - 노이즈 픽셀 제거
 module noise_filter_3x3 #(
-    parameter IMG_WIDTH = 320,
+    parameter IMG_WIDTH  = 320,
     parameter IMG_HEIGHT = 240,
-    parameter X_WIDTH = $clog2(
-        IMG_WIDTH
-    ),  // 9 (0~319를 담는 데 필요한 비트 수)
-    parameter Y_WIDTH = $clog2(
-        IMG_HEIGHT
-    )  // 8 (0~239를 담는 데 필요한 비트 수)
+    parameter X_WIDTH = $clog2(IMG_WIDTH),
+    parameter Y_WIDTH = $clog2(IMG_HEIGHT)
 ) (
     input  logic pclk,
-    input  logic rst,   // active-high, 비동기 리셋
+    input  logic rst,
 
-    input  logic               red_valid,    // color_filter 출력이 유효한 타이밍 (1클럭 펄스)
-    input  logic               red_mask,     // color_filter 출력 (1비트, 색상 매칭 여부)
-    input  logic [X_WIDTH-1:0] pixel_x,  // 현재 픽셀 x좌표 (0~319)
-    input  logic [Y_WIDTH-1:0] pixel_y,  // 현재 픽셀 y좌표 (0~239)
+    input  logic               red_valid,
+    input  logic               red_mask,
+    input  logic [X_WIDTH-1:0] pixel_x,
+    input  logic [Y_WIDTH-1:0] pixel_y,
 
-    output logic clean_mask,  // 노이즈 제거 후 최종 판정 결과
-    output logic [X_WIDTH-1:0]  clean_x,      // clean_mask가 실제로 가리키는 x좌표
-    output logic [Y_WIDTH-1:0]  clean_y,      // clean_mask가 실제로 가리키는 y좌표
-    output logic out_valid  // clean_mask/clean_x/clean_y가 유효한지
+    output logic                clean_mask,
+    output logic [X_WIDTH-1:0]  clean_x,
+    output logic [Y_WIDTH-1:0]  clean_y,
+    output logic                out_valid
 );
 
-    logic line1_val;
-    logic line2_val;
+    logic line1_val;  // 1줄 전 값
+    logic line2_val;  // 2줄 전 값
 
     line_buffer #(
         .IMG_WIDTH(IMG_WIDTH)
     ) U_LINE_BUFFER (
         .pclk       (pclk),
+        .rst        (rst),
         .pixel_valid(red_valid),
         .pixel_x    (pixel_x),
         .data_in    (red_mask),
@@ -38,98 +35,80 @@ module noise_filter_3x3 #(
         .line2_out  (line2_val)
     );
 
-    logic row0_a, row0_b, row0_c;  // 현재 줄에서 최근 3칸
-    logic row1_a, row1_b, row1_c;  // 1줄 전에서 최근 3칸
-    logic row2_a, row2_b, row2_c;  // 2줄 전에서 최근 3칸
+    // 3x3 윈도우 (row2=위, row1=중앙, row0=아래)
+    logic row0_a, row0_b, row0_c;
+    logic row1_a, row1_b, row1_c;
+    logic row2_a, row2_b, row2_c;
 
-    // 3. 좌표 지연 파이프라인
     logic [X_WIDTH-1:0] x_d1;
     logic [Y_WIDTH-1:0] y_d1;
 
-    // 4. 라인 진행 상태 추적 카운터
-    //    3x3 윈도우가 아직 다 채워지지 않은 "초반 구간"(맨 위 2줄, 각 줄을 구분해내기 위한 카운터)
-    logic [X_WIDTH-1:0] row_fill_cnt;    // 이번 줄에서 지금까지 몇 열을 처리했는지
-    logic [Y_WIDTH-1:0] valid_row_cnt;   // 지금까지 몇 줄이 완전히 지나갔는지
+    // line_buffer가 실제 데이터로 채워질 때까지(최소 2줄) 대기용 카운터
+    logic [1:0] rows_seen;
+    logic       rows_ready;
 
-    logic window_ready;  // 3x3 윈도우가 온전히 채워졌는지
-    logic edge_pixel;     // 화면 가장자리 또는 윈도우 미완성 -> 노이즈로 취급해야 하는지
-
-    // 5. out_valid 지연 파이프라인
-    logic valid_d1;  // 1단계 지연
+    logic valid_d1;  // out_valid 2클럭 지연 파이프라인용
 
     always_ff @(posedge pclk or posedge rst) begin
         if (rst) begin
-            row_fill_cnt  <= 1'b0;
-            valid_row_cnt <= 1'b0;
-            valid_d1      <= 1'b0;
-            out_valid     <= 1'b0;
+            valid_d1  <= 1'b0;
+            out_valid <= 1'b0;
+            rows_seen <= 2'd0;
 
             row0_a <= 1'b0; row0_b <= 1'b0; row0_c <= 1'b0;
             row1_a <= 1'b0; row1_b <= 1'b0; row1_c <= 1'b0;
             row2_a <= 1'b0; row2_b <= 1'b0; row2_c <= 1'b0;
-
-            x_d1    <= 1'b0;
-            y_d1    <= 1'b0;
-            clean_x <= 1'b0;
-            clean_y <= 1'b0;
+            x_d1    <= '0;
+            y_d1    <= '0;
+            clean_x <= '0;
+            clean_y <= '0;
 
         end else begin
             if (red_valid) begin
-                // 1) 3x3 shift register 갱신
-                row2_a <= row2_b;
-                row2_b <= row2_c;
-                row2_c <= line2_val;
-                row1_a <= row1_b;
-                row1_b <= row1_c;
-                row1_c <= line1_val;
-                row0_a <= row0_b;
-                row0_b <= row0_c;
-                row0_c <= red_mask;
+                // 3x3 shift register 한 칸씩 밀기
+                row2_a <= row2_b; row2_b <= row2_c; row2_c <= line2_val;
+                row1_a <= row1_b; row1_b <= row1_c; row1_c <= line1_val;
+                row0_a <= row0_b; row0_b <= row0_c; row0_c <= red_mask;
 
-                // 2) 좌표 지연
+                // 좌표 지연 (row1=중앙 줄 번호에 맞춤)
                 x_d1    <= pixel_x;
                 y_d1    <= pixel_y;
                 clean_x <= x_d1;
                 clean_y <= (y_d1 == 0) ? 1'b0 : (y_d1 - 1'b1);
 
-                // 3) 이번 줄 진행 카운트
-                if (pixel_x == IMG_WIDTH - 1) begin
-                    row_fill_cnt  <= 1'b0;
-                    valid_row_cnt <= valid_row_cnt + 1'b1;
-                end else begin
-                    row_fill_cnt <= row_fill_cnt + 1'b1;
+                if (pixel_x == IMG_WIDTH - 1 && rows_seen < 2'd2) begin
+                    rows_seen <= rows_seen + 1'b1;
                 end
             end
 
-            // valid 파이프라인은 red_valid와 무관하게 매 클럭 항상 흘러감
+            // red_valid=0일 때도 흘러가야 out_valid가 정상적으로 0으로 떨어짐
             valid_d1  <= red_valid;
             out_valid <= valid_d1;
         end
     end
 
-    // =========================================================================
-    // 6. 경계 판정 (조합논리)
-    // =========================================================================
-    assign window_ready = (valid_row_cnt >= 2) && (row_fill_cnt >= 2);
+    assign rows_ready = (rows_seen >= 2'd2);
 
-    assign edge_pixel   = !window_ready
-                        || (clean_x == 0) || (clean_x == IMG_WIDTH - 1)
-                        || (clean_y == 0) || (clean_y == IMG_HEIGHT - 1);
+    // 제로패딩: 화면 밖 이웃은 존재하지 않는 것으로 처리
+    logic left_valid, right_valid, top_valid, bottom_valid;
+    assign left_valid   = (clean_x != 0);
+    assign right_valid  = (clean_x != IMG_WIDTH - 1);
+    assign top_valid    = (clean_y != 0);
+    assign bottom_valid = (clean_y != IMG_HEIGHT - 1);
 
-    // =========================================================================
-    // 7. Majority(다수결) 판정
-    // =========================================================================
+    // 9칸 중 존재하는 이웃만 합산 (대각선은 AND로 두 조건 결합)
     logic [3:0] neighbor_sum;
-    assign neighbor_sum = row0_a + row0_b + row0_c
-                         + row1_a + row1_b + row1_c
-                         + row2_a + row2_b + row2_c;
+    assign neighbor_sum = (row2_a & left_valid  & top_valid)
+                         + (row2_b & top_valid)
+                         + (row2_c & right_valid & top_valid)
+                         + (row1_a & left_valid)
+                         + row1_b
+                         + (row1_c & right_valid)
+                         + (row0_a & left_valid  & bottom_valid)
+                         + (row0_b & bottom_valid)
+                         + (row0_c & right_valid & bottom_valid);
 
-    always_comb begin
-        if (edge_pixel) begin
-            clean_mask = 1'b0;
-        end else begin
-            clean_mask = (neighbor_sum >= 4'd5);
-        end
-    end
+    // 워밍업 구간은 0 고정, 이후 과반수(>=5)면 1
+    assign clean_mask = rows_ready ? (neighbor_sum >= 4'd5) : 1'b0;
 
 endmodule
