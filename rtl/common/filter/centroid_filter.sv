@@ -70,6 +70,9 @@ module centroid_filter (
     );
 
     center_error u_center_error (
+        .pclk             (pclk),
+        .rst              (rst),
+        .frame_done       (done),
         .target_valid_out (target_valid_out),
         .target_x         (target_x),
         .target_y         (target_y),
