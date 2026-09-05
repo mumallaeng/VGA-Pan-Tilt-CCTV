@@ -5,6 +5,12 @@ module top (
     input        rst,
     input  [1:0] vga_sw,
     input        red_filter_en,  // need to check RED filtering is working
+    // Joy stick
+    input        vauxp6,
+    input        vauxn6,
+    input        vauxp14,
+    input        vauxn14,
+    input        mode,
     // Camera
     input        ov7670_pclk,
     input        ov7670_vsync,
@@ -19,7 +25,12 @@ module top (
     output       v_sync,
     output [3:0] r_port,
     output [3:0] g_port,
-    output [3:0] b_port
+    output [3:0] b_port,
+    // PWM
+    output       pwm_pan,
+    output       pwm_tilt,
+    // Debug UART (transmit only)
+    output       tx
 );
     // ov7670 camera related module & wire
     // =============================================
@@ -227,24 +238,30 @@ module top (
         .out_valid (out_valid)
     );
 
-    // Min/Max filter? calculate?
+    // Centroid filter
     // ---------------------------------------------
-    wire target_valid_in, done;
+    wire target_valid_out, frame_done, frame_valid;
     wire [8:0] max_x, min_x;
     wire [7:0] max_y, min_y;
-    min_max_find U_MIN_MAX_FIND (
-        .pclk           (vga_pclk),
-        .rst            (rst),
-        .clean_mask     (clean_mask),
-        .out_valid      (out_valid),
-        .clean_x        (clean_x),
-        .clean_y        (clean_y),
-        .target_valid_in(target_valid_in),
-        .min_x          (min_x),
-        .max_x          (max_x),
-        .min_y          (min_y),
-        .max_y          (max_y),
-        .done           (done)
+    wire signed [8:0] frame_dx;
+    wire signed [7:0] frame_dy;
+
+    centroid_filter U_CENTROID_FILTER (
+        .pclk            (vga_pclk),
+        .rst             (rst),
+        .clean_mask      (clean_mask),
+        .out_valid       (out_valid),
+        .clean_x         (clean_x),
+        .clean_y         (clean_y),
+        .done            (frame_done),
+        .target_valid_out(target_valid_out),
+        .valid           (frame_valid),
+        .min_x           (min_x),
+        .max_x           (max_x),
+        .min_y           (min_y),
+        .max_y           (max_y),
+        .rect_x          (frame_dx),
+        .rect_y          (frame_dy)
     );
 
     // Draw bounding box logic
@@ -252,8 +269,8 @@ module top (
     draw_box U_DRAW_BOX (
         .pclk           (vga_pclk),
         .rst            (rst),
-        .target_valid_in(target_valid_in),
-        .done           (done),
+        .target_valid_in(target_valid_out),
+        .done           (frame_done),
         .x_pixel        (x_pixel),
         .y_pixel        (y_pixel),
         .max_x          (max_x),
@@ -262,6 +279,46 @@ module top (
         .min_y          (min_y),
         .box_en         (box_en_raw)
     );
+
+    wire joy_valid, joy_done, manual_en;
+    wire signed [4:0] joy_dx;
+    wire signed [4:0] joy_dy;
+    joystick_top U_JOYSTICK_TOP (
+        .clk        (clk),
+        .rst        (rst),
+        .vauxp6     (vauxp6),
+        .vauxn6     (vauxn6),
+        .vauxp14    (vauxp14),
+        .vauxn14    (vauxn14),
+        .joy_btn    (joy_btn),
+        .joy_motor_x(joy_dx),
+        .joy_motor_y(joy_dy),
+        .joy_valid  (joy_valid),
+        .joy_done   (joy_done),
+        .manual_en  (manual_en)
+    );
+
+    // Servo control top
+    // ---------------------------------------------
+    servo_top U_SERVO_TOP (
+        .clk        (clk),
+        .rst        (rst),
+        .frame_dx   (frame_dx),
+        .frame_dy   (frame_dy),
+        .frame_valid(frame_valid),
+        .frame_done (frame_done),
+        .mode       (manual_en),
+        .joy_dx     (joy_dx),
+        .joy_dy     (joy_dy),
+        .joy_valid  (joy_valid),
+        .joy_done   (joy_done),
+        .pwm_pan    (pwm_pan),
+        .pwm_tilt   (pwm_tilt),
+        // Debug link: servo_top reports the frame error, the mux output and
+        // the commanded angles over the 9600 baud UART.
+        .tx         (tx)
+    );
+
 
     // Realign box_en with the 1-clock BRAM read latency that fb_rdata/
     // pixel_valid_d (and img_x/img_y) already carry inside

@@ -16,7 +16,8 @@ module servo_top #(
     input  logic              joy_valid,
     input  logic              joy_done,
     output logic              pwm_pan,
-    output logic              pwm_tilt
+    output logic              pwm_tilt,
+    output logic              tx        // 9600 baud debug link
 );
 
     logic signed [9:0] delta_x;
@@ -73,6 +74,24 @@ module servo_top #(
         .pwm  (pwm_tilt)
     );
 
+    // Debug: one ASCII line per sampled frame carrying the whole chain, from
+    // the raw frame error through the mux output to the commanded angles.
+    servo_debug_uart #(
+        .DECIMATION(6)
+    ) u_servo_debug_uart (
+        .clk        (clk),
+        .rst        (rst),
+        .frame_dx   (frame_dx),
+        .frame_dy   (frame_dy),
+        .frame_valid(frame_valid),
+        .frame_done (frame_done),
+        .delta_x    (delta_x),
+        .delta_y    (delta_y),
+        .pan_angle  (pan_angle),
+        .tilt_angle (tilt_angle),
+        .tx         (tx)
+    );
+
 endmodule
 
 
@@ -90,7 +109,8 @@ module servo_joystick_top #(
     input logic joy_btn,
 
     output logic pwm_pan,
-    output logic pwm_tilt
+    output logic pwm_tilt,
+    output logic tx
 );
 
     logic signed [4:0] joy_dx;
@@ -135,7 +155,8 @@ module servo_joystick_top #(
         .joy_done(joy_done),
 
         .pwm_pan (pwm_pan),
-        .pwm_tilt(pwm_tilt)
+        .pwm_tilt(pwm_tilt),
+        .tx      (tx)
     );
 
 endmodule
