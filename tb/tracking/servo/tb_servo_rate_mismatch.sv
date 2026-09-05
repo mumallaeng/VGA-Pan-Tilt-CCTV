@@ -9,11 +9,11 @@
 // actually matters is preserved:
 //
 //     frame period  = 300000/60 = 5000 cycles   (60 Hz image frames)
-//     move_tick     = 300000/50 = 6000 cycles   (50 Hz servo step)
+//     pwm refresh   = 300000/50 = 6000 cycles   (50 Hz servo_pwm reload)
 //     ratio         = 6:5, identical to the real 100 MHz case
 //
-// servo_top does not forward its CLK_HZ parameter to axis_ctrl, so the
-// axis_ctrl side is scaled with defparam. No RTL is modified.
+// axis_ctrl no longer has a move_tick of its own: it applies each arriving
+// delta directly, so the angle now updates at the frame rate.
 module tb_servo_rate_mismatch;
 
     localparam int SIM_CLK_HZ   = 300_000;
@@ -51,46 +51,34 @@ module tb_servo_rate_mismatch;
         .pwm_tilt   (pwm_tilt)
     );
 
-    defparam dut.u_axis_ctrl.CLK_HZ       = SIM_CLK_HZ;
-    defparam dut.u_axis_ctrl.MOVE_TICK_HZ = 50;
-
     // ---------------- instrumentation ----------------
     wire       angle_valid = dut.u_axis_ctrl.angle_valid;
-    wire       move_tick   = dut.u_axis_ctrl.move_tick;
+    wire       angle_apply = dut.u_axis_ctrl.angle_apply;
     wire [7:0] angle_pan   = dut.u_axis_ctrl.angle_pan;
-    wire [7:0] target_pan  = dut.u_axis_ctrl.target_pan;
 
     int frame_count      = 0;   // frames handed to the DUT
     int update_count     = 0;   // clk cycles with angle_valid high
-    int tick_count       = 0;   // move_tick pulses
+    int apply_count      = 0;   // cycles where a delta was applied
     int step_count       = 0;   // cycles where angle_pan actually changed
-    int coincide_count   = 0;   // cycles where angle_valid AND move_tick
-    int target_change    = 0;   // cycles where target_pan actually changed
 
-    logic [7:0] prev_pan, prev_target;
+    logic [7:0] prev_pan;
     logic       trace_on = 1'b0;
 
     always @(posedge clk) begin
         if (rst) begin
-            prev_pan    <= 8'd90;
-            prev_target <= 8'd90;
+            prev_pan <= 8'd90;
         end else begin
             if (angle_valid) update_count++;
-            if (move_tick) tick_count++;
-            if (angle_valid && move_tick) coincide_count++;
-
-            if (target_pan !== prev_target) target_change++;
+            if (angle_apply) apply_count++;
 
             if (angle_pan !== prev_pan) begin
                 step_count++;
                 if (trace_on)
-                    $display("    step %0d: pan %0d -> %0d (target=%0d, frame#%0d, tick#%0d)",
-                             step_count, prev_pan, angle_pan, target_pan,
-                             frame_count, tick_count);
+                    $display("    step %0d: pan %0d -> %0d (frame#%0d)",
+                             step_count, prev_pan, angle_pan, frame_count);
             end
 
-            prev_pan    <= angle_pan;
-            prev_target <= target_pan;
+            prev_pan <= angle_pan;
         end
     end
 
@@ -107,20 +95,18 @@ module tb_servo_rate_mismatch;
     endtask
 
     task automatic reset_counters;
-        frame_count    = 0;
-        update_count   = 0;
-        tick_count     = 0;
-        step_count     = 0;
-        coincide_count = 0;
-        target_change  = 0;
+        frame_count  = 0;
+        update_count = 0;
+        apply_count  = 0;
+        step_count   = 0;
     endtask
 
     task automatic report(input string phase);
-        $display("  %s: frames=%0d  move_ticks=%0d  angle_steps=%0d",
-                 phase, frame_count, tick_count, step_count);
-        $display("    angle_valid cycles=%0d   angle_valid&&move_tick=%0d   target changes=%0d",
-                 update_count, coincide_count, target_change);
-        $display("    final: angle_pan=%0d target_pan=%0d", angle_pan, target_pan);
+        $display("  %s: frames=%0d  deltas_applied=%0d  angle_steps=%0d",
+                 phase, frame_count, apply_count, step_count);
+        $display("    angle_valid cycles=%0d (4 per frame, edge detected to %0d)",
+                 update_count, apply_count);
+        $display("    final: angle_pan=%0d", angle_pan);
     endtask
 
     initial begin

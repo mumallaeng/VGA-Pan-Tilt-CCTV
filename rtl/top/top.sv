@@ -307,7 +307,7 @@ module top (
         .frame_dy   (frame_dy),
         .frame_valid(frame_valid),
         .frame_done (frame_done),
-        .mode       (manual_en),
+        .mode       (mode),
         .joy_dx     (joy_dx),
         .joy_dy     (joy_dy),
         .joy_valid  (joy_valid),

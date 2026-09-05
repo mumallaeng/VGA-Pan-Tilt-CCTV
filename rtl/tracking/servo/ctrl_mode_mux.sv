@@ -34,12 +34,35 @@ module ctrl_mode_mux #(
     logic control_tick;
     logic joystick_ready;
 
+    // AUTO path, held to the same 50 Hz tick as MANUAL.
+    //
+    // A frame result cannot simply be ANDed with control_tick: frame_done is a
+    // vga_pclk pulse four clk cycles wide while control_tick is one cycle in
+    // two million, so they would essentially never coincide. Instead a frame
+    // arms frame_pending and the next tick releases it. Frames arrive at
+    // 59.5 Hz and are consumed at 50 Hz, so roughly one in six is superseded
+    // before its tick, which is intended: the tick always acts on the newest
+    // result. centroid_filter keeps frame_dx/frame_dy driven after the pulse
+    // (rect_x_hold), so the data is still valid when the tick fires.
+    logic frame_req, frame_req_d, frame_pulse;
+    logic frame_pending;
+    assign frame_req   = frame_done & frame_valid;
+    assign frame_pulse = frame_req & ~frame_req_d;
+
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             control_counter <= '0;
             control_tick    <= 1'b0;
             joystick_ready  <= 1'b0;
+            frame_req_d     <= 1'b0;
+            frame_pending   <= 1'b0;
         end else begin
+            frame_req_d <= frame_req;
+
+            // Consuming tick re-arms only if a frame lands on that same cycle.
+            if (control_tick && frame_pending) frame_pending <= frame_pulse;
+            else if (frame_pulse) frame_pending <= 1'b1;
+
             if (CONTROL_TICK_CYCLES <= 1) begin
                 control_counter <= '0;
                 control_tick    <= 1'b1;
@@ -66,6 +89,6 @@ module ctrl_mode_mux #(
     // joy_done reports that fresh joystick data arrived. joy_dx/y retain that
     // data, while control_tick limits actual servo commands to 50 Hz.
     // BISECT (temp): joystick_ready dropped from manual-mode gate.
-    assign sel_done = mode ? control_tick : (frame_done & frame_valid);
+    assign sel_done = mode ? control_tick : (control_tick & frame_pending);
 
 endmodule

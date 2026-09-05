@@ -66,7 +66,7 @@ module ov7670_reg_init #(
             7'd22:   register_word = 16'h1A_7B;
             7'd23:   register_word = 16'h03_00;
             7'd24:   register_word = 16'h0F_41;
-            7'd25:   register_word = 16'h1E_00;
+            7'd25:   register_word = 16'h1E_30;
             7'd26:   register_word = 16'h33_0B;
             7'd27:   register_word = 16'h3C_78;
             7'd28:   register_word = 16'h69_00;
