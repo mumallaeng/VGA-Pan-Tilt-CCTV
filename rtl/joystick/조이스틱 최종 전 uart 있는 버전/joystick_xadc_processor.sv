@@ -15,9 +15,9 @@ module joystick_xadc_processor (
     output logic [11:0] o_raw_y
 );
 
-    (* mark_debug = "true" *) logic        w_xadc_data_valid;
-    (* mark_debug = "true" *) logic [11:0] w_xadc_x;
-    (* mark_debug = "true" *) logic [11:0] w_xadc_y;
+    logic        w_xadc_data_valid;
+    logic [11:0] w_xadc_x;
+    logic [11:0] w_xadc_y;
 
     // ===== uart test 용 =====
     assign o_raw_x = w_xadc_x;

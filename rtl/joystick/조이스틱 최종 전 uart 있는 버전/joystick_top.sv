@@ -57,9 +57,9 @@ module joystick_top (
         .busy_out   (xadc_busy)
     );
 
-    (* mark_debug = "true" *) logic [11:0] w_filtered_x;
-    (* mark_debug = "true" *) logic [11:0] w_filtered_y;
-    (* mark_debug = "true" *) logic w_filtered_data_valid;
+    logic [11:0] w_filtered_x;
+    logic [11:0] w_filtered_y;
+    logic w_filtered_data_valid;
 
     // ===== uart test =====
     logic [11:0] w_raw_x;

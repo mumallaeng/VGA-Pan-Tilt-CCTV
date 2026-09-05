@@ -21,8 +21,8 @@ module servo_top #(
 
     logic signed [9:0] delta_x;
     logic signed [8:0] delta_y;
-    (* mark_debug = "true" *) logic [7:0] pan_angle;
-    (* mark_debug = "true" *) logic [7:0] tilt_angle;
+    logic        [7:0] pan_angle;
+    logic        [7:0] tilt_angle;
     logic              sel_done;
 
     ctrl_mode_mux #(
@@ -78,7 +78,7 @@ endmodule
 
 module servo_joystick_top #(
     parameter integer CLK_HZ = 100_000_000,
-    parameter integer MANUAL_CONTROL_HZ = 50
+    parameter integer MANUAL_CONTROL_HZ = 100  // #1: 2x sample rate, faster reversal response
 ) (
     input logic clk,
     input logic rst,
@@ -87,17 +87,17 @@ module servo_joystick_top #(
     input logic vauxn6,
     input logic vauxp14,
     input logic vauxn14,
-    (* mark_debug = "true" *) input logic joy_btn,
+    input logic joy_btn,
 
     output logic pwm_pan,
     output logic pwm_tilt
 );
 
-    (* mark_debug = "true" *) logic signed [4:0] joy_dx;
-    (* mark_debug = "true" *) logic signed [4:0] joy_dy;
-    (* mark_debug = "true" *) logic              joy_valid;
-    (* mark_debug = "true" *) logic              joy_done;
-    (* mark_debug = "true" *) logic manual_en;
+    logic signed [4:0] joy_dx;
+    logic signed [4:0] joy_dy;
+    logic              joy_valid;
+    logic              joy_done;
+    logic              manual_en;
 
     joystick_top u_joystick (
         .clk        (clk),

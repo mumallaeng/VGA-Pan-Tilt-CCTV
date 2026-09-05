@@ -18,7 +18,7 @@ module ctrl_mode_mux #(
     input  logic              joy_done,
     output logic signed [9:0] delta_x,
     output logic signed [8:0] delta_y,
-    (* mark_debug = "true" *) output logic       sel_done
+    output logic              sel_done
 );
 
     logic signed [9:0] scaled_joy_dx;
@@ -27,10 +27,12 @@ module ctrl_mode_mux #(
     logic signed [8:0] joy_dy_ext;
     localparam integer CONTROL_TICK_CYCLES = CLK_HZ / MANUAL_CONTROL_HZ;
     localparam integer CONTROL_COUNTER_WIDTH =
-        (CONTROL_TICK_CYCLES <= 1) ? 1 : $clog2(CONTROL_TICK_CYCLES);
+        (CONTROL_TICK_CYCLES <= 1) ? 1 : $clog2(
+        CONTROL_TICK_CYCLES
+    );
     logic [CONTROL_COUNTER_WIDTH-1:0] control_counter;
-    (* mark_debug = "true" *) logic control_tick;
-    (* mark_debug = "true" *) logic joystick_ready;
+    logic control_tick;
+    logic joystick_ready;
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -49,8 +51,7 @@ module ctrl_mode_mux #(
                 control_tick    <= 1'b0;
             end
 
-            if (joy_done && joy_valid)
-                joystick_ready <= 1'b1;
+            if (joy_done && joy_valid) joystick_ready <= 1'b1;
         end
     end
 
@@ -65,7 +66,6 @@ module ctrl_mode_mux #(
     // joy_done reports that fresh joystick data arrived. joy_dx/y retain that
     // data, while control_tick limits actual servo commands to 50 Hz.
     // BISECT (temp): joystick_ready dropped from manual-mode gate.
-    assign sel_done = mode ? control_tick
-                           : (frame_done & frame_valid);
+    assign sel_done = mode ? control_tick : (frame_done & frame_valid);
 
 endmodule
