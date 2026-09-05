@@ -68,19 +68,18 @@ module joystick_mapper(
     always_comb begin
         delta_y  = 5'sd0;
         y_product = 24'd0;
-        // Y inverted (2026-09-05): stick-up previously drove tilt to 180, now drives to 0
         if (i_filtered_y <= Y_MIN) begin
-            delta_y = -5'sd10;
+            delta_y = 5'sd10;
         end else if ((i_filtered_y > Y_MIN) && (i_filtered_y < Y_DZ_LOW)) begin
             y_product = (Y_DZ_LOW - i_filtered_y) * Y_LOW_GAIN;
-            delta_y  = -$signed(y_product[16:12]);
+            delta_y  = $signed(y_product[16:12]);
         end else if ((i_filtered_y >= Y_DZ_LOW) && (i_filtered_y <= Y_DZ_HIGH)) begin
             delta_y = 5'sd0;
         end else if ((i_filtered_y > Y_DZ_HIGH) && (i_filtered_y < Y_MAX)) begin
             y_product = (i_filtered_y - Y_DZ_HIGH) * Y_HIGH_GAIN;
-            delta_y = $signed(y_product[16:12]);
+            delta_y = -$signed(y_product[16:12]);
         end else begin
-            delta_y = 5'sd10;
+            delta_y = -5'sd10;
         end
     end
 
