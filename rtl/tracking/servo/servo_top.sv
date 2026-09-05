@@ -2,7 +2,22 @@
 
 module servo_top #(
     parameter integer CLK_HZ = 100_000_000,
-    parameter integer MANUAL_CONTROL_HZ = 50
+    parameter integer MANUAL_CONTROL_HZ = 50,
+    parameter integer AUTO_CONTROL_HZ = 6,
+    // One pair of mechanical limits per axis. axis_ctrl clamps its accumulator
+    // to them and servo_pwm clamps the pulse to them; if the two ever disagree
+    // the wider one becomes silent integrator windup, so both get the same
+    // parameter here rather than their own defaults.
+    //
+    // These were 45..135 on both axes, which turned out to be the dominant
+    // limit in flight: a target at the edge of the frame is 30 deg off
+    // boresight, so from anywhere but dead centre the loop ran into a rail and
+    // sat there. Pan is base rotation and gets close to the servo's full
+    // sweep; tilt is held back because the camera swings into the bracket.
+    parameter integer PAN_ANGLE_MIN = 15,
+    parameter integer PAN_ANGLE_MAX = 165,
+    parameter integer TILT_ANGLE_MIN = 25,
+    parameter integer TILT_ANGLE_MAX = 155
 ) (
     input  logic              clk,
     input  logic              rst,
@@ -28,7 +43,8 @@ module servo_top #(
 
     ctrl_mode_mux #(
         .CLK_HZ           (CLK_HZ),
-        .MANUAL_CONTROL_HZ(MANUAL_CONTROL_HZ)
+        .MANUAL_CONTROL_HZ(MANUAL_CONTROL_HZ),
+        .AUTO_CONTROL_HZ  (AUTO_CONTROL_HZ)
     ) u_ctrl_mode_mux (
         .clk        (clk),
         .rst        (rst),
@@ -46,7 +62,12 @@ module servo_top #(
         .sel_done   (sel_done)
     );
 
-    axis_ctrl u_axis_ctrl (
+    axis_ctrl #(
+        .PAN_ANGLE_MIN (PAN_ANGLE_MIN),
+        .PAN_ANGLE_MAX (PAN_ANGLE_MAX),
+        .TILT_ANGLE_MIN(TILT_ANGLE_MIN),
+        .TILT_ANGLE_MAX(TILT_ANGLE_MAX)
+    ) u_axis_ctrl (
         .clk       (clk),
         .reset     (rst),
         .delta_x   (delta_x),
@@ -57,7 +78,9 @@ module servo_top #(
     );
 
     servo_pwm #(
-        .CLK_HZ(CLK_HZ)
+        .CLK_HZ   (CLK_HZ),
+        .ANGLE_MIN(PAN_ANGLE_MIN),
+        .ANGLE_MAX(PAN_ANGLE_MAX)
     ) u_servo_pwm_pan (
         .clk  (clk),
         .rst  (rst),
@@ -66,7 +89,9 @@ module servo_top #(
     );
 
     servo_pwm #(
-        .CLK_HZ(CLK_HZ)
+        .CLK_HZ   (CLK_HZ),
+        .ANGLE_MIN(TILT_ANGLE_MIN),
+        .ANGLE_MAX(TILT_ANGLE_MAX)
     ) u_servo_pwm_tilt (
         .clk  (clk),
         .rst  (rst),

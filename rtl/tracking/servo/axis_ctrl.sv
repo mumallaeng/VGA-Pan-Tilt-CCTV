@@ -8,7 +8,25 @@
 // anything imposed here.
 module axis_ctrl #(
     parameter integer PAN_DEADZONE  = 0,
-    parameter integer TILT_DEADZONE = 0
+    parameter integer TILT_DEADZONE = 0,
+    // Each pair must match the corresponding servo_pwm exactly. Clamping to a
+    // wider range here is an integrator windup: the command keeps accumulating
+    // past what the shaft can reach, nothing reports that saturation back into
+    // the loop, and when the error finally reverses the servo stands still for
+    // however long it takes the excess to unwind. servo_top passes one pair
+    // per axis to both modules so they cannot drift apart.
+    //
+    // The limits are per axis because the two have different mechanical
+    // travel: pan is base rotation with little to hit, while tilt swings the
+    // camera into the bracket at both ends. They also have to be wide enough
+    // for the job - at 0.1875 deg per pixel a target at the edge of the frame
+    // is 30 deg off boresight, so a range narrower than about +-45 deg from
+    // centre leaves edge targets permanently unreachable and parks the loop
+    // against the rail.
+    parameter integer PAN_ANGLE_MIN  = 15,
+    parameter integer PAN_ANGLE_MAX  = 165,
+    parameter integer TILT_ANGLE_MIN = 25,
+    parameter integer TILT_ANGLE_MAX = 155
 ) (
     input  logic              clk,
     input  logic              reset,
@@ -18,6 +36,12 @@ module axis_ctrl #(
     output logic        [7:0] angle_pan,
     output logic        [7:0] angle_tilt
 );
+
+    // Park at the centre, pulled inside the limits in case they exclude 90.
+    localparam integer PAN_RESET = (90 < PAN_ANGLE_MIN) ? PAN_ANGLE_MIN :
+                                   (90 > PAN_ANGLE_MAX) ? PAN_ANGLE_MAX : 90;
+    localparam integer TILT_RESET = (90 < TILT_ANGLE_MIN) ? TILT_ANGLE_MIN :
+                                    (90 > TILT_ANGLE_MAX) ? TILT_ANGLE_MAX : 90;
 
     logic signed [                  16:0] requested_pan;
     logic signed [                  16:0] requested_tilt;
@@ -48,9 +72,11 @@ module axis_ctrl #(
     // of applying the same delta four times over.
     assign angle_apply = angle_valid & ~angle_valid_d;
 
-    function automatic logic [7:0] clamp_angle(input logic signed [16:0] value);
-        if (value > 17'sd180) clamp_angle = 8'd180;
-        else if (value < 17'sd0) clamp_angle = 8'd0;
+    function automatic logic [7:0] clamp_angle(input logic signed [16:0] value,
+                                               input integer lo,
+                                               input integer hi);
+        if (value > hi) clamp_angle = hi[7:0];
+        else if (value < lo) clamp_angle = lo[7:0];
         else clamp_angle = value[7:0];
     endfunction
 
@@ -66,15 +92,17 @@ module axis_ctrl #(
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
-            angle_pan     <= 8'd90;
-            angle_tilt    <= 8'd90;
+            angle_pan     <= PAN_RESET[7:0];
+            angle_tilt    <= TILT_RESET[7:0];
             angle_valid_d <= 1'b0;
         end else begin
             angle_valid_d <= angle_valid;
 
             if (angle_apply) begin
-                angle_pan  <= clamp_angle(requested_pan);
-                angle_tilt <= clamp_angle(requested_tilt);
+                angle_pan  <= clamp_angle(requested_pan,
+                                          PAN_ANGLE_MIN, PAN_ANGLE_MAX);
+                angle_tilt <= clamp_angle(requested_tilt,
+                                          TILT_ANGLE_MIN, TILT_ANGLE_MAX);
             end
         end
     end
