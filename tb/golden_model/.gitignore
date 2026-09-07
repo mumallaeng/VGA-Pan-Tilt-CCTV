@@ -1,0 +1,9 @@
+_work/
+.venv/
+*.vvp
+*.jou
+*.log
+*.pb
+xsim.dir/
+webtalk*
+__pycache__/
