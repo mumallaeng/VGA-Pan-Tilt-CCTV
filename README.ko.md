@@ -1,0 +1,482 @@
+[English](README.md) | 한국어
+
+# Pan-Tilt Vision Tracker — FPGA 기반 수동·자동 객체 추적 시스템
+
+> [컨소시엄] 온디바이스AI 시스템반도체 설계 2기 교육과정 VGA 수업에서 진행된 과제입니다.
+
+1팀 도리도리 7인 · 2026.08.31~2026.09.08
+
+| 팀원 | 담당 범위 | 주요 작업 |
+|:--|:--|:--|
+| 조성재(팀장) ([@seongjaejo](https://github.com/seongjaejo)) | 영상 노이즈 필터 | 일정 관리, Line Buffer, 3×3 Window, Majority 판정 |
+| 권재원 ([@kw0njw2222](https://github.com/kw0njw2222)) | 조이스틱 입력 처리 | XADC 구성, X/Y 분리, 이동평균, 변화량 변환, UART 검증 |
+| 김동현 ([@kimdh315](https://github.com/kimdh315)) | 영상 출력 및 통합 | Bounding Box 오버레이, VGA 출력, 전체 Top 통합 |
+| 김연우 ([@mumallaeng](https://github.com/mumallaeng)) | 서보 제어 | 자동 및 수동 입력 선택, 각도별 PWM, `servo_top` 통합 |
+| 박경민 ([@gyeongminbag27-arch](https://github.com/gyeongminbag27-arch)) | 영상과 모터 인터페이스 | 좌표 오차의 각도 변환, 각도 누적, STM32 모터 시험 |
+| 박종웅 ([@Critical-mankind](https://github.com/Critical-mankind)) | 영상 입출력 및 하드웨어 | SCCB, 카메라 초기화, 색상 필터, 2축 브래킷 구성 |
+| 변호연 ([@k948158](https://github.com/k948158)) | 객체 위치 계산 | min/max 경계, 중심 좌표, 화면 중심 오차 계산 |
+
+![demo](https://github.com/user-attachments/assets/1f9c26d3-6eb8-4aac-a7ed-d1257c4be049)
+
+# 1. 프로젝트 개요 (Project Overview)
+
+## 1.1 프로젝트 목표
+
+이번 프로젝트는 OV7670 카메라 영상에서 녹색 객체를 검출하고, 객체 중심과 화면 중심의 오차를 이용해 Pan-Tilt 카메라가 대상을 추적하도록 구현하였다. 영상 입력, 색상 검출, 노이즈 제거, 중심 좌표 계산과 서보모터 제어를 Basys3 FPGA에 통합하였으며, 조이스틱으로 카메라 방향을 직접 조절하는 수동 모드로 구성하였다.
+
+자동 모드에서는 검출된 객체가 화면 중앙에 위치하도록 두 축의 각도를 갱신한다. 수동 모드에서는 조이스틱의 X축과 Y축 아날로그 입력을 XADC로 변환하고, 입력의 흔들림을 줄인 뒤 방향별 변화량을 모터 제어부에 전달한다. VGA 화면에는 카메라 영상과 Bounding Box를 출력하여 검출 결과를 확인할 수 있도록 하였다.
+
+## 1.2 설계 목표 및 주요 사양
+
+| 항목 | 설계 내용 |
+|:--|:--|
+| FPGA 및 기준 클록 | Basys3, 시스템 클록 100 MHz                    |
+| 카메라 입력       | OV7670, QVGA 320×240, RGB565                   |
+| VGA 출력          | 640×480 타이밍, RGB444, 픽셀 클록 25 MHz       |
+| 추적 대상         | 녹색 객체, G ≥ 128, G−R ≥ 40, G−B ≥ 40         |
+| 공간 노이즈 제거  | 3×3 이웃 9픽셀 중 5개 이상이 검출되면 마스크 1 |
+| 객체 유효 조건    | 프레임 내 검출 픽셀 수 700개 이상              |
+| 좌표 안정화       | 객체 중심 좌표에 5프레임 평균 적용             |
+| 조이스틱 처리     | 12-bit ADC, 4-sample 이동평균, 변화량 −10~+10  |
+| 서보 출력         | SG90 2축, 50 Hz, High 펄스 폭 약 1~2 ms        |
+| 기계적 동작 범위  | Pan 15°\~165°, Tilt 25°\~155°                    |
+
+구현 범위는 색상 기반 객체 검출과 단일 대상의 방향 추적이다. 객체 종류를 구분하는 인식 모델과 조명에 따른 임계값 자동 조정, 대상 이탈 후 재탐색은 향후 개선 항목으로 구분하였다.
+
+## 1.3 진행 일정
+
+개발 일정은 요구사항과 인터페이스 정의, 모듈 구현, 통합 검증, 하드웨어 구성 및 최종 시연 단계로 나누었다. 영상 입력과 필터, 조이스틱, 서보 제어를 병행 개발하고 모듈별 신호와 갱신 조건을 공유하며 Top에서 연결하였다.
+
+| 기간 | 주요 작업 | 주요 산출물 |
+|:--|:--|:--|
+| 08.31~09.01 | 주제 및 요구사항 확정, 블록도와 인터페이스 정의 | WBS, 시스템 블록도, 인터페이스 명세 |
+| 09.01~09.04 | 카메라, 영상 필터, VGA, 조이스틱, 서보 모듈 구현 및 단위 검증 | 파트별 RTL, Testbench |
+| 09.02~09.04 | 전체 Top 연결과 인터페이스 조정 | Top RTL, 통합 연결 구조 |
+| 09.01~09.06 | 카메라 마운트와 2축 브래킷 구성, 모터 시험 | 카메라와 서보 하드웨어 |
+| 09.06~09.07 | 통합 시뮬레이션, FPGA 동작 시험, 방향 보정 | 검증 결과, 실기 동작 확인 |
+| 09.08 | 최종 기능 확인, 발표 및 시연 자료 정리 | 발표자료, 시연 결과 |
+
+## 1.4 설계 및 개발 환경
+
+| 구분 | 환경 및 용도 |
+|:--|:--|
+|  개발 언어   |       SystemVerilog, Verilog / STM32 사전 시험용 C        |
+|   RTL 설계   |            Vivado 기반 FPGA 설계 및 시뮬레이션            |
+|     검증     |        SystemVerilog Testbench, UVM, Synopsys VCS         |
+|  기준 모델   |        Python 기반 영상 Golden Model 및 결과 비교         |
+| 입출력 장치  | OV7670 카메라, VGA 모니터, HW-504 조이스틱, SG90 서보 2개 |
+|  보조 검증   |  UART를 통한 조이스틱 데이터 관찰, STM32 서보 구동 시험   |
+| 협업 및 문서 |        Git, GitHub, WBS, 인터페이스 명세, 발표자료        |
+
+영상처리의 단계별 결과는 소프트웨어 기준 모델과 비교하고, 카메라 Capture 및 SCCB 통신은 UVM으로 검증하였다. FPGA 실기에서는 화면 표시와 모터의 실제 회전 방향을 함께 확인하였다.
+
+## 1.5 역할 분담 및 구성 요소
+
+| 담당자 | 담당 범위 | 주요 작업 |
+|:--|:--|:--|
+| 조성재 ([@seongjaejo](https://github.com/seongjaejo)) | 팀장 및 영상 노이즈 필터 | 일정 관리, Line Buffer, 3×3 Window, Majority 판정 |
+| 권재원 ([@kw0njw2222](https://github.com/kw0njw2222)) | 조이스틱 입력 처리 | XADC 구성, X/Y 분리, 이동평균, 변화량 변환, UART 검증 |
+| 김동현 ([@kimdh315](https://github.com/kimdh315)) | 영상 출력 및 통합 | Bounding Box 오버레이, VGA 출력, 전체 Top 통합 |
+| 김연우 ([@mumallaeng](https://github.com/mumallaeng)) | 서보 제어 | 자동 및 수동 입력 선택, 각도별 PWM, servo_top 통합 |
+| 박경민 ([@gyeongminbag27-arch](https://github.com/gyeongminbag27-arch)) | 영상과 모터 인터페이스 | 좌표 오차의 각도 변환, 각도 누적, STM32 모터 시험 |
+| 박종웅 ([@Critical-mankind](https://github.com/Critical-mankind)) | 영상 입출력 및 하드웨어 | SCCB, 카메라 초기화, 색상 필터, 2축 브래킷 구성 |
+| 변호연 ([@k948158](https://github.com/k948158)) | 객체 위치 계산 | min/max 경계, 중심 좌표, 화면 중심 오차 계산 |
+
+![](https://github.com/user-attachments/assets/4480b68b-50fc-43fa-8200-a9a4b6748380)
+
+FPGA는 영상 데이터 처리와 제어 신호 생성을 담당한다. 카메라와 조이스틱은 각각 자동 추적과 수동 조작의 입력을 제공하며, VGA 모니터와 두 개의 서보모터는 검출 결과와 제어 결과를 출력한다.
+
+# 2. 이론 및 배경
+
+## 2.1 영상 데이터와 색상 검출
+
+RGB565는 한 픽셀을 16 bit로 표현하며 R과 B에 각각 5 bit, G에 6 bit를 사용한다. 카메라의 8-bit 데이터 버스에서는 두 번의 전송으로 한 픽셀이 완성된다. 색상 비교를 위해 각 채널을 8-bit 범위로 확장하고, 특정 채널의 밝기와 다른 채널과의 차이를 함께 비교한다.
+
+이진 마스크는 해당 픽셀이 추적 대상 색상인지 1 bit로 표시한 결과이다. 검출된 점 하나가 바로 객체를 의미하지 않으므로, 주변 3×3 영역의 다수결 판정으로 고립된 픽셀을 줄이고 프레임 전체의 검출 개수로 객체 유효 여부를 판단한다.
+
+## 2.2 Bounding Box 기반 중심 계산
+
+Bounding Box는 검출 픽셀의 최소 및 최대 X/Y 좌표로 객체를 감싸는 사각형이다. 본 설계에서는 이 사각형 양 끝점의 평균으로 중심 좌표를 계산한다. 따라서 중심은 검출된 모든 픽셀 좌표의 평균인 무게중심과 구분되며, min/max 값을 이용해 비교적 간단한 연산으로 얻을 수 있다.
+
+## 2.3 이동평균과 입력 안정화
+
+이동평균은 최근 입력값 여러 개를 평균하여 순간적인 변화를 완화하는 방법이다. 조이스틱 ADC에는 최근 4개 샘플을 사용하고, 객체 중심 좌표에는 5프레임 평균을 적용하였다. 두 필터는 서로 다른 입력과 갱신 주기를 가지며, 평균 구간을 늘릴수록 잡음은 줄어들지만 새로운 움직임에 대한 응답도 늦어질 수 있다.
+
+## 2.4 Pan Tilt 및 PWM 제어
+
+Pan은 카메라의 좌우 회전, Tilt는 상하 회전을 의미한다. SG90 서보에는 약 20 ms마다 반복되는 PWM을 입력하고, High 구간의 길이로 목표 위치를 전달한다. 제어부는 화면 오차나 조이스틱 변화량을 각도 변화량으로 바꾼 뒤 현재 명령각에 누적한다.
+
+| 처리 구분 | 입력 정보 | 출력 정보 |
+|:--|:--|:--|
+|   공간 필터   |    한 프레임의 이웃 픽셀     |  노이즈가 완화된 이진 마스크   |
+|   시간 평균   | 최근 ADC 샘플 또는 중심 좌표 |      변동이 완화된 입력값      |
+|   자동 추적   |  화면 중심에 대한 객체 오차  |      Pan/Tilt 각도 변화량      |
+|   수동 제어   |  조이스틱의 중심 대비 변위   | 방향과 크기를 갖는 제어 변화량 |
+
+# 3. 시스템 아키텍처 (System Architecture)
+
+## 3.1 전체 시스템 구조
+
+![](https://github.com/user-attachments/assets/f6b8cae3-4a86-406d-8df8-f68b15cffe12)
+
+전체 시스템은 영상부, 필터부, 조이스틱부, 서보 제어부로 구성된다. OV7670 Capture가 RGB565 픽셀을 구성하여 Frame Buffer에 저장하면, VGA 경로에서 화면 출력용 데이터를 읽는다. Green Filter, Noise Filter, Centroid 계산부는 영상으로부터 객체의 경계와 중심 오차를 산출한다.
+
+조이스틱 경로는 XADC, X/Y Reader, Noise Filter와 Mapper로 구성된다. 자동 모드에서는 영상에서 계산한 오차를 사용하고, 수동 모드에서는 조이스틱 변화량을 선택한다. 선택된 입력은 axis_ctrl에서 각도로 변환된 뒤 pwm_pan과 pwm_tilt로 출력된다.
+
+Bounding Box는 화면에서 객체 검출 상태를 확인하는 출력 경로이며, 서보 제어는 중심 오차를 이용하는 별도 경로이다. 따라서 표시 좌표와 모터 입력의 기준 좌표 및 유효 신호를 일치시키는 것이 Top 통합의 핵심이다.
+
+## 3.2 카메라와 VGA 세부 연결
+
+![](https://github.com/user-attachments/assets/a4403340-bea0-494d-8a89-115199d40700)
+
+SCCB Master와 Register Init은 카메라 설정을 담당하고, XCLK Generator는 카메라에 기준 클록을 공급한다. Capture는 카메라 PCLK에 맞춰 픽셀을 저장하고, VGA Core와 Frame Reader는 디스플레이 픽셀 클록에 맞춰 메모리를 읽는다.
+
+Frame Buffer의 쓰기 주소, 쓰기 데이터와 쓰기 허용 신호는 각각 fb_waddr, fb_wdata, fb_we로 연결된다. 읽기 데이터는 요청한 주소보다 한 클록 뒤에 유효하므로, Frame Reader에서는 화면 영역과 출력 선택 신호도 동일하게 지연시켜 RGB 데이터와 정렬한다.
+
+위 세부 블록도는 색상 필터를 Red로 표기한 초기 영상 입출력 구조이다. 최종 추적에서는 같은 RGB565 입력 인터페이스에 Green Filter의 판정 조건을 적용하였다. 실제 추적 대상과 본문의 임계값은 녹색 기준으로 정리하였다.
+
+## 3.3 제어 데이터 전달
+
+영상 결과에는 좌표뿐 아니라 대상 검출 여부와 결과 갱신 시점이 함께 전달된다. frame_valid가 0인 경우에는 해당 결과를 새로운 각도 변화량으로 누적하지 않고 기존 각도를 유지한다. 수동 입력도 새 데이터의 유효 시점에 맞춰 전달하여 같은 값을 매 시스템 클록마다 반복 누적하지 않도록 한다.
+
+## 3.4 주요 인터페이스 및 클록
+
+| 신호 또는 데이터 | 폭과 범위 | 연결 및 유효 조건 |
+|:--|:--|:--|
+| `cam_data` | 8 bit | OV7670 → Capture, HREF가 1일 때 PCLK마다 수신 |
+| `fb_wdata` / `fb_waddr` | 16 bit / 17 bit | Capture → Frame Buffer, `fb_we`가 1일 때 저장 |
+| 영상 좌표 | X 9 bit / Y 8 bit | 320×240 기준, X 0\~319 및 Y 0\~239 |
+| `clean_mask` / `out_valid` | 각 1 bit | Noise Filter → 경계 계산, 좌표와 같은 시점에 유효 |
+| `rect_x` / `rect_y` | signed 9 bit / 8 bit | 화면 중심 기준 오차, 결과 갱신 및 검출 유효 조건과 함께 전달 |
+| `joy_motor_x/y` | −10~+10 | signed 변화량, 5 bit로 표현 가능, 넓은 입력에 연결할 때 부호 확장 |
+| `mode` / `manual_en` | 1 bit | 0 자동, 1 수동 |
+| `angle_pan` / `angle_tilt` | 각 8 bit | 현재 명령각, 기계적 허용 범위로 제한 |
+| `pwm_pan` / `pwm_tilt` | 각 1 bit | 두 SG90에 전달하는 50 Hz PWM |
+
+| 클록 | 사용 범위 | 설계 시 고려 사항 |
+|:--|:--|:--|
+| 시스템 100 MHz | SCCB, XADC 제어, 서보 제어 | 각도 갱신 이벤트와 PWM 주기를 구분 |
+| 카메라 PCLK | Capture와 Frame Buffer 쓰기 | HREF 및 VSYNC에 따른 픽셀 수신 |
+| VGA 25 MHz | VGA 타이밍, Frame Buffer 읽기 | 메모리 읽기 지연과 출력 신호 정렬 |
+
+카메라 초기화 완료 레벨 init_done은 PCLK 도메인의 2단 동기화 레지스터를 거쳐 Capture 해제에 사용한다. 단일 레벨 신호와 달리 여러 비트의 좌표 및 단발 펄스를 다른 도메인으로 전달할 때는 데이터 유지와 수신 시점을 함께 고려해야 한다. 최종 통합에서는 해당 데이터와 갱신 이벤트가 같은 결과를 가리키도록 관리한다.
+
+# 4. 파트별 상세 설계 (Detailed Design)
+
+## 4.1 OV7670 초기화 및 Capture
+
+카메라 초기화는 Register Table의 주소와 데이터를 SCCB 3-byte Write로 순차 전송하는 구조이다. 전송 단위는 Device Write Address 0x42, Register Address, Register Data로 구성하였다. Master가 busy 상태가 아닐 때 start를 발생시키고, done을 확인한 뒤 다음 레지스터를 전송한다.
+
+| 초기화 항목 | 설정 및 동작 |
+|:--|:--|
+| Register Table  | QVGA RGB565 설정을 위한 75개 항목, 인덱스 0~74 |
+|    대기 시간    | 100 MHz 기준 시작 대기 1,000,000 cycle = 10 ms |
+|   Reset 대기    |              500,000 cycle = 5 ms              |
+|    SCCB SIOC    |               기본 설정 100 kHz                |
+|      SIOD       |         Low 구동 또는 High-Z 해제 방식         |
+| Ninth bit 처리  |     기본 CHECK_ACK=0에서 Don’t-Care로 처리     |
+|  Capture 시작   |     init_done 동기화 후 Capture reset 해제     |
+
+Capture는 HREF가 활성화된 구간에서 두 바이트를 수신하여 {high_byte, cam_data} 형태의 RGB565 픽셀을 만든다. 완성된 픽셀마다 fb_we를 한 클록 활성화하고, 주소가 0~76,799 범위 안에 있을 때 Frame Buffer에 저장한다. VSYNC가 활성화되면 프레임 수신 상태와 좌표 및 주소를 초기화한다.
+
+| Capture 상태 | 역할 |
+|:--|:--|
+| `S_IDLE` | 프레임 수신 준비 및 초기 상태 |
+| `S_WAIT_LINE` | 유효 라인 시작 대기 |
+| `S_BYTE_HIGH` | RGB565 상위 바이트 수신 |
+| `S_BYTE_LOW` | 하위 바이트 수신 및 픽셀 조립 |
+| `S_WAIT_LINE_END` | 라인 수신 종료 대기 및 경계 처리 |
+
+정상 프레임뿐 아니라 불완전 바이트, 비정상 라인 길이와 프레임 중단도 검증 대상으로 삼았다. 잘못된 입력이 다음 프레임의 주소와 픽셀 조립 상태까지 이어지지 않도록 경계 조건을 확인하였다.
+
+## 4.2 Green Filter
+
+Green Filter는 RGB565 픽셀을 입력받아 녹색 조건을 만족하는 픽셀만 이진 마스크로 출력한다. RGB565의 R[15:11], G[10:5], B[4:0]를 분리한 뒤, 상위 비트를 하위 자리에 반복하여 R8, G8, B8로 확장한다.
+
+![](https://github.com/user-attachments/assets/c8820ca4-b3bc-476d-a5ba-b8f8f27d7b42)
+
+| 항목 | 처리 방식 |
+|:--|:--|
+| R 확장 | 5-bit R 값 뒤에 상위 3 bit를 붙여 8 bit 구성 |
+| G 확장 | 6-bit G 값 뒤에 상위 2 bit를 붙여 8 bit 구성 |
+| B 확장 | 5-bit B 값 뒤에 상위 3 bit를 붙여 8 bit 구성 |
+| 녹색 밝기 조건 | G8이 128 이상 |
+| 색상 우세 조건 | G8이 R8 및 B8보다 각각 40 이상 큼 |
+| 출력 | 조건 만족 시 마스크 1, 그 외 0 |
+
+절대 밝기 조건만 사용하면 밝은 흰색과 회색 영역도 포함될 수 있다. 따라서 다른 채널과의 차이를 함께 비교하여 녹색이 상대적으로 우세한 픽셀을 선택하였다. 마스크의 유효 여부는 해당 RGB565 픽셀의 valid와 함께 전달한다.
+
+이 방식은 비교기와 간단한 비트 조합으로 구성할 수 있지만 조명이나 카메라의 색상 설정에 영향을 받는다. 실내 시험에서 사용한 고정 임계값을 기준으로 검출하였으며, 주변 밝기에 따른 자동 보정은 향후 개선 항목으로 남겼다.
+
+## 4.3 Line Buffer와 3×3 Noise Filter
+
+색상 판정 결과에 포함된 고립 픽셀을 제거하기 위해 3×3 Majority Filter를 구성하였다. 현재 입력 라인과 이전 두 라인의 데이터를 이용하여 세 행을 만들고, 각 행의 최근 세 픽셀을 Shift Register에 저장하여 3×3 Window를 형성한다.
+
+![](https://github.com/user-attachments/assets/02f251e3-c8bf-4bb1-8113-a330b9a6967f)
+
+Window의 9개 마스크를 더한 값이 5 이상이면 출력 마스크를 1로 결정한다. 중앙 입력 픽셀이 0이더라도 주변의 다수가 1이면 출력은 1이 될 수 있다. 반대로 주변에서 고립된 1은 제거되므로, 작은 점 잡음이 객체 경계 계산에 미치는 영향을 줄일 수 있다.
+
+| 설계 요소 | 처리 내용 |
+|:--|:--|
+| 라인 저장 | 이전 1행과 이전 2행의 같은 X 위치 값을 제공 |
+| Window 구성 | 현재 행을 포함한 3행의 값을 3열로 이동 |
+| 다수결 기준 | 9개 이진 픽셀 합이 5 이상이면 `clean_mask=1` |
+| 경계 처리 | 영상 밖의 이웃을 0으로 취급하여 경계 접근 처리 |
+| 출력 정렬 | 마스크와 실제 대응 좌표 및 valid를 함께 전달 |
+
+필터 내부는 전체 영상을 별도로 저장하지 않고 라인 단위 저장소를 재사용한다. 이 구조의 메모리 절감은 3×3 필터 내부에 해당하며, 카메라와 VGA 사이에 사용하는 Frame Buffer와는 구분된다. 또한 필터 출력의 좌표가 원래 입력 좌표와 어긋나지 않도록 파이프라인 지연을 함께 반영한다.
+
+## 4.4 객체 경계와 중심 오차 계산
+
+min_max_find는 clean_mask가 1이고 출력이 유효한 픽셀에 대해 min_x, max_x, min_y, max_y를 갱신한다. 한 프레임의 유효 픽셀 수가 700개 이상이면 target_valid를 설정하여 작은 잡음 영역이 모터 제어 입력으로 사용되는 것을 줄였다.
+
+![](https://github.com/user-attachments/assets/c0ad7980-4373-42c8-819e-8a180d24660c)
+
+중심 좌표는 QVGA 영상의 화면 중심 (160, 120)을 기준으로 signed 오차로 변환한다. X축은 화면 왼쪽이 음수인 방향을 사용하고, Y축은 화면 위쪽이 양수인 방향을 기준으로 제어부와 연결하였다. 영상의 Y좌표 증가 방향과 실제 Tilt 회전 방향이 다를 수 있으므로 통합 과정에서 방향을 확인하였다.
+
+프레임별 중심 좌표에는 5프레임 평균을 적용하여 객체 외곽의 작은 변화가 모터의 반복 회전으로 이어지는 현상을 완화하였다. 좌표와 검출 유효 신호는 프레임 처리 결과가 확정된 시점에 함께 전달하며, 검출이 유효하지 않으면 각도를 갱신하지 않는다.
+
+## 4.5 VGA 출력 및 Bounding Box
+
+VGA Core는 25 MHz 픽셀 클록에서 수평 800 count와 수직 525 count를 사용하며, 이 중 640×480 구간에 영상을 출력한다. 영상 데이터 자체는 320×240이므로 전체 화면 표시에서는 원본 X/Y 좌표를 각각 두 배로 확대해 표시한다. 지정된 타이밍의 수직 갱신율은 약 59.5 Hz로 60 Hz급 VGA 출력에 해당한다.
+
+| 구분 | 기준 |
+|:--|:--|
+| 원본 영상 좌표 | X 0\~319, Y 0\~239 |
+| 표시 좌표 | X 0\~639, Y 0\~479 |
+| 원본 주소 | `img_y × 320 + img_x` |
+| 전체 화면 확대 | `img_x = vga_x >> 1`, `img_y = vga_y >> 1` |
+| 동기 신호 | 수평 656\~751, 수직 490\~491 구간 Active-Low |
+| RGB 출력 | RGB565에서 상위 비트를 선택해 RGB444 출력 |
+
+![](https://github.com/user-attachments/assets/2d15b423-e6ff-4386-b809-105275de53d3)
+
+draw_box는 경계 좌표와 현재 출력 위치를 비교해 박스 선에 해당하는 위치의 box_en을 생성한다. Frame Reader는 box_en에 따라 원본 색상 대신 빨간색을 출력한다. Frame Buffer의 1클록 읽기 지연과 RGB, 동기 신호의 지연을 맞춰 영상과 박스가 같은 위치를 가리키도록 하였다.
+
+## 4.6 XADC 설정과 X Y 데이터 분리
+
+조이스틱 입력부는 HW-504의 X/Y 전압을 XADC의 VAUX6과 VAUX14로 읽는다. 두 채널을 순차 변환하므로 ADC 결과가 어느 축에 해당하는지 구분해야 한다. xadc_xy_reader는 변환 완료 시점의 채널 주소를 저장하고, DRP 읽기 완료 시점에 해당 축 레지스터를 갱신한다.
+
+| 신호 | 처리 시점 | 기능 |
+|:--|:--|:--|
+| channel_out[4:0] | eoc_out=1 | 변환을 완료한 채널의 주소 저장 |
+| den_in | eoc_out 발생 | 변환 결과 레지스터의 DRP 읽기 요청 |
+| daddr_in[6:0] | 읽기 요청 시 | 채널 번호에 대응하는 결과 주소 전달 |
+| do_out[15:0] | drdy_out=1 | DRP 읽기 데이터, 실제 ADC 값은 [15:4] |
+| VAUX6 / 5’h16 | 저장한 채널 주소 비교 | X축 12-bit 레지스터 갱신 |
+| VAUX14 / 5’h1E | 저장한 채널 주소 비교 | Y축 12-bit 레지스터 갱신 |
+| o_xadc_data_valid | X/Y 한 쌍 갱신 | 후단 이동평균 필터에 새 입력 알림 |
+
+### 4.6.1 EOC와 DRDY 구분
+
+EOC는 아날로그 변환의 완료를 나타내고, DRDY는 요청한 DRP 읽기 데이터가 준비되었음을 나타낸다. 두 신호는 같은 의미가 아니므로 EOC 시점에 채널을 식별하고 DRDY 시점에 값을 저장하는 순서로 처리하였다. 이를 통해 채널 주소와 읽기 데이터의 대응을 유지하였다.
+
+### 4.6.2 입력 연결 및 유효 신호
+
+VAUX6의 P 입력은 JXADC 1번, VAUX14의 P 입력은 JXADC 2번에 연결하고 N 입력은 GND 기준을 사용한다. 조이스틱의 아날로그 전압은 분압된 입력으로 연결한다. 수집된 X/Y 값은 하나의 유효한 쌍으로 처리하여 후단에서 서로 다른 갱신 시점의 값을 섞지 않도록 하였다.
+
+joystick_xadc_processor는 X/Y Reader와 Noise Filter를 묶어 필터링된 12-bit X/Y 값과 o_filtered_data_valid를 출력한다. Mapper는 해당 valid가 발생했을 때 새로운 제어 변화량을 계산한다.
+
+## 4.7 조이스틱 이동평균과 변화량 변환
+
+![](https://github.com/user-attachments/assets/0990d4ae-9d46-4887-a182-f46cced05f18)
+
+xadc_noise_filter는 현재 ADC 값과 이전 세 샘플의 합을 4로 나누는 이동평균을 적용하였다. X축과 Y축을 독립적으로 처리하여 방향별 흔들림을 줄이고, 새 X/Y 데이터가 유효한 경우에만 필터 값을 갱신한다.
+
+조이스틱 중앙에서는 작은 ADC 변화가 계속 발생할 수 있으므로 Dead Zone을 두었다. 중앙 영역의 출력은 0으로 하고, 중앙을 벗어난 입력은 방향별 실측 범위를 이용해 −10~+10의 변화량으로 선형 변환하였다. 결과는 절대 화면 좌표가 아니라 현재 모터 각도를 갱신하는 데 사용할 방향과 크기이다.
+
+| 입력 상태 | 출력 변화량 | 수동 제어 의미 |
+|:--|:--|:--|
+| 중앙 Dead Zone | 0 | 기존 각도 유지 |
+| 왼쪽 또는 아래 방향 | 음수 | 해당 축의 음의 방향으로 갱신 |
+| 오른쪽 또는 위 방향 | 양수 | 해당 축의 양의 방향으로 갱신 |
+| 최대 변위 부근 | −10 또는 +10 | 설정된 최대 변화량으로 제한 |
+
+버튼 입력은 디바운스와 토글 처리를 통해 manual_en으로 변환한다. manual_en=1이면 수동 입력이 선택되고, 0이면 영상 추적 결과가 선택된다. 조이스틱은 중앙으로 복귀해도 카메라를 초기 각도로 되돌리지 않고 이동을 멈추는 방식으로 사용한다.
+
+## 4.8 모드 선택과 각도 누적 제어
+
+![](https://github.com/user-attachments/assets/90683f2f-1e3d-4f9c-9b4c-eb82ddafa83c)
+
+- 주요 RTL은 Axis Control, PWM Pan/Tilt로 구성한다.
+
+- Axis Control은 자동 모드의 화면 오차 또는 수동 모드의 조이스틱 변화량(delta)을 받아 제한된 각도로 변환하고, PWM Pan/Tilt가 이를 PWM count로 변환한다.
+
+- 서보는 50 Hz, 20 ms 주기로 동작하며 약 1\~2 ms High pulse가 0°\~180°에 대응한다. 목표 pulse width는 주기 경계에서 갱신한다.
+
+사용한 SG90은 5 V Analog Micro Servo이며 신호선은 Orange/Yellow, 전원은 Red, GND는 Brown이다. 구동 가능 범위는 0°\~180°이고 크기는 약 23×29×12.2 mm, 무게는 약 9 g이다. 실제 브래킷에서는 Pan 15°\~165°, Tilt 25°\~155°만 사용한다.
+
+![](https://github.com/user-attachments/assets/ad439bb2-2186-494a-8168-5f84b095ed54)
+
+그림 7. SG90 서보모터 사양과 Pan/Tilt 적용 범위
+
+PWM count 예시는 최소각·중앙·최대각에서 각각 약 100,000, 149,950, 199,900이며, 각도에 비례해 1~2 ms High 구간을 생성한다.
+
+![](https://github.com/user-attachments/assets/b460e1e3-259b-4a31-8d87-0d5d47af3eea)
+
+그림 8. Pulse width에 따른 서보 위치 제어
+
+- Pan은 15°\~165°, Tilt는 25°\~155°로 제한하고 1회 각도 변화량을 최대 ±20°로 제한한다.
+
+자동 모드와 수동 모드는 동일한 axis control을 공유한다. 입력 변화량에 5/16°/count 이득을 적용하고 한 번에 최대 ±20°까지만 갱신한 뒤 현재 각도에 누적한다.
+
+ctrl_mode_mux는 자동 모드의 frame_dx/dy와 수동 모드의 joy_dx/dy 중 하나를 선택한다. 자동 모드는 대상 검출이 유효할 때의 frame_done, 수동 모드는 joy_done을 기준으로 갱신한다. 선택된 입력과 갱신 신호를 axis_ctrl에 함께 전달한다.
+
+![](https://github.com/user-attachments/assets/80653353-7231-4089-af08-ddfaf4505973)
+
+입력 변화량에는 5/16 °/count의 이득을 적용하고, 한 번에 반영하는 각도 변화량을 최대 ±20°로 제한하였다. 계산 결과를 현재 각도에 누적한 뒤 Pan과 Tilt의 허용 범위 안으로 제한한다. 장착된 브래킷의 구조에 따라 Pan은 15°\~165°, Tilt는 25°\~155°를 사용하였다.
+
+## 4.9 PWM 생성과 서보 구동
+
+![](https://github.com/user-attachments/assets/81da46e5-2c28-46a6-9393-773ae35be6c9)
+
+servo_pwm은 각도 명령을 High count로 변환하고 20 ms 주기의 카운터와 비교하여 PWM을 생성한다. 100 MHz 시스템 클록은 한 주기가 10 ns이므로, 20 ms PWM 주기는 2,000,000 count에 해당한다. 목표 High count는 PWM 주기 경계에서 반영하여 이미 출력 중인 펄스의 폭이 중간에 바뀌지 않도록 하였다.
+
+| 기준 각도 | 명목 High 시간 | 100 MHz 기준 명목 count |
+|:--|:--|:--|
+| 0° | 1.0 ms | 100,000 |
+| 90° | 1.5 ms | 150,000 |
+| 180° | 2.0 ms | 200,000 |
+
+실제 명령각은 브래킷의 Pan/Tilt 허용 범위 안으로 제한한다.
+
+### 4.9.1 하드웨어 적용
+
+SG90 두 개를 이용해 카메라의 좌우 및 상하 방향을 제어하였다. 모터의 신호선, 5 V 전원과 GND를 구분해 연결하고, 구동 시험 단계에서는 STM32 TIM3 PWM을 이용해 기본 위치와 명령각 변화에 따른 움직임을 확인하였다. 이후 FPGA의 pwm_pan과 pwm_tilt를 이용하는 구조로 통합하였다.
+
+서보 입력의 펄스 폭은 명령값이며 실제 기계 각도와 완전히 같다고 단정할 수는 없다. 최종 통합에서는 장착 방향과 끝단 간섭 여부를 확인하고, 각도 제한 및 변화량 부호를 실제 조립 상태에 맞춰 적용하였다.
+
+# 5. 파트별 검증 (Verification)
+
+## 5.1 검증 구성과 Capture UVM
+
+검증은 카메라 통신 및 픽셀 조립의 UVM 검증, 영상 파이프라인의 Python Golden Model 비교, 조이스틱 입력의 필터 적용 전후 비교로 나누었다. 단위 모듈의 기능과 데이터 일치를 확인한 뒤 FPGA에서 화면 표시 및 서보 동작을 확인하였다.
+
+![](https://github.com/user-attachments/assets/279b99f8-8ecf-46f1-8c28-106029cb58cd)
+
+| 검증 시나리오 | 확인 내용 |
+|:--|:--|
+| 정상 320×240 프레임 | 두 바이트의 RGB565 조립 및 저장 주소 일치 |
+| 짧거나 긴 라인 | 320픽셀 기준을 벗어나는 HREF 구간의 처리 |
+| 픽셀 조립 중 HREF 종료 | 불완전 픽셀의 저장 및 후속 라인에 미치는 영향 |
+| 수신 중 VSYNC 또는 Reset | 상태 및 주소 초기화와 이후 정상 수신 복구 |
+| 저장 주소 범위 초과 | QVGA 메모리 유효 범위 처리 |
+
+Capture Scoreboard는 PASS=78,203, FAIL=0을 기록하였고, 발표 결과에서 UVM_ERROR와 UVM_FATAL이 모두 0으로 정리되었다. Functional Coverage의 Command와 Write는 각각 100%이다.
+
+Coverage 화면의 DUT 항목은 100%이며, 상위 tb_top에는 Score 99.60%, Line 97.62%가 표시된다. 상위 Testbench와 DUT는 서로 다른 집계 대상이므로 100% 결과는 DUT 및 검토 후 집계 범위에 해당한다. 검토 후 집계에서는 도달 불가능한 X/Y 조건과 사용하지 않는 카운터 상위 비트를 제외하였다.
+
+## 5.2 SCCB Master UVM 검증
+
+SCCB Master는 Device Address, Register Address, Register Data를 보내는 3-byte Write 동작을 검증하였다. 정상 전송 외에도 각 바이트 단계의 ACK/NACK 입력, 전송 도중 start 발생, 모든 FSM 상태에서의 Reset과 미사용 상태에서의 복구를 시험하였다.
+
+![](https://github.com/user-attachments/assets/868368f5-1eb7-4b6f-9760-a3ab255e9954)
+
+| 항목 | 검증 결과 |
+|:--|:--|
+| Scoreboard 실행 로그 | PASS=56, FAIL=0 |
+| UVM 결과 | UVM_ERROR 0, UVM_FATAL 0 |
+| Functional Coverage | Address, Data, ACK/NACK, Busy Start, ACK Error 각 100% |
+| Code Coverage | Line, Condition, Toggle, FSM, Branch, Assertion 각 100% |
+| 집계 범위 | DUT 외 UVM Library와 Recording Helper Code 제외 |
+
+![](https://github.com/user-attachments/assets/9696a326-27d8-44a0-9e96-e5241840ba4b)
+
+Reset 시나리오는 전송이 진행 중인 상태에서도 초기 상태로 복구되는지 확인하는 데 사용하였다. ACK 관련 검증은 ACK 확인 설정에 따른 동작을 포함하며, 카메라 초기화 기본 설정의 Ninth bit Don’t-Care 처리와 구분하여 해석하였다.
+
+## 5.3 영상 파이프라인 Golden Model 검증
+
+영상 검증은 같은 원본 데이터를 Python Golden Model과 RTL Testbench에 입력한 뒤 각 단계의 결과를 비교하는 방식으로 수행하였다. 최종 화면만 비교하면 오류가 발생한 위치를 찾기 어려우므로 Frame Buffer, 색상 마스크, 노이즈 필터, 객체 경계와 서보 입력 직전의 오차까지 나누어 확인하였다.
+
+![](https://github.com/user-attachments/assets/813b67ba-2271-4b57-982b-9dc689e08b13)
+
+| 비교 단계 | 확인 데이터 |
+|:--|:--|
+|    Frame Buffer    |       RGB565 원본 프레임 데이터        |
+| Green Color Filter |      색상 판정 결과인 이진 마스크      |
+|    Noise Filter    |      3×3 필터를 거친 이진 마스크       |
+|  Centroid Filter   |     Bounding Box 및 중심 계산 결과     |
+|   Pre-servo 입력   |         dx, dy 및 valid 데이터         |
+|   Final Display    | Bounding Box가 반영된 최종 표시 이미지 |
+
+출력 이미지를 직접 비교하는 과정과 함께 각 결과 파일의 바이트 해시를 비교하였다. 시각적으로 비슷해 보여도 픽셀이나 좌표가 다를 수 있기 때문에, 같은 비교 단계의 RTL 결과와 Golden 결과가 bit-identical인지 확인하였다.
+
+이 검증의 범위는 영상 입력부터 서보 입력 직전의 데이터 및 디스플레이 결과이다. 실제 모터의 회전과 카메라의 기계적 응답은 FPGA 실기 시험에서 별도로 확인하였다.
+
+## 5.4 Golden Model 비교 결과
+
+![](https://github.com/user-attachments/assets/22a41259-6450-4b82-9a5b-44d3b5341a4a)
+
+원본의 녹색 객체가 Green Filter를 거쳐 흰색 마스크로 표시되고, Noise Filter에서 주변 잡음이 완화되며, 최종 이미지에는 객체를 감싸는 Bounding Box가 표시된다. Golden Model과 RTL 결과에서 동일한 처리 과정을 확인하였다.
+
+![](https://github.com/user-attachments/assets/855fa948-b990-4173-b2d3-f04fffb6fdcb)
+
+![](https://github.com/user-attachments/assets/2d6b5621-7f16-467a-9633-23307253d6ea)
+
+320×240과 640×480 비교 로그에서 6개 단계가 모두 MATCH로 표시되고 TEST PASSED가 출력되었다. 이는 해당 입력 이미지와 시험 조건에서 기준 모델과 RTL의 바이트 결과가 일치한 결과이다.
+
+## 5.5 조이스틱 필터 검증
+
+조이스틱 처리부는 원시 ADC 값, 필터 출력과 최종 변화량을 단계별로 확인할 수 있도록 UART TX, Data Sender와 Debug Top을 구성하였다. 이를 이용해 입력 데이터의 흔들림과 필터 적용 후 변화를 비교하였다.
+
+![](https://github.com/user-attachments/assets/28849a3d-5289-4219-91e6-88d5738d0d45)
+
+그래프에서 이동평균을 적용한 출력은 원시 값의 순간적인 큰 변화를 완화하였다. 발표 결과에서는 Peak-to-Peak 변동폭이 약 60% 감소한 것으로 정리하였다. 이 수치는 제시된 측정 구간의 비교 결과이며, 모든 조이스틱 위치와 조작 속도에서 같은 감소율을 의미하지는 않는다.
+
+필터 적용과 함께 Dead Zone 및 변화량 제한을 사용하여 중앙 부근에서 작은 ADC 변화가 불필요한 모터 명령으로 전달되는 것을 줄였다. 반면 이동평균에는 응답 지연이 따르므로 필터 길이와 입력 갱신 주기는 조작감과 안정성을 함께 고려해야 한다.
+
+# 6. FPGA 구현 및 트러블슈팅
+
+## 6.1 FPGA 구현 및 시연 결과
+
+Basys3에서 OV7670 영상의 VGA 실시간 출력, 녹색 객체 Bounding Box 표시, 자동 Pan/Tilt 추적과 조이스틱 수동 제어를 확인하였다. 영상 입력부터 서보 출력까지 FPGA 내부 경로로 통합하였다.
+
+<img width="400" alt="자동 추적과 수동 모드 전환 시연" src="https://github.com/user-attachments/assets/cedbc4c1-5a01-4269-8b3f-1adc2589df9d" />
+
+자동 모드에서 객체 중심이 이동하면 카메라가 오차를 줄이는 방향으로 회전했고, 수동 모드에서는 X/Y 조이스틱 변위에 따라 두 축이 독립적으로 동작하였다. 위 GIF는 시연 영상(Demo_Video_V1.mp4)의 후반부로, 자동 추적 중 수동 모드로 전환해 조이스틱으로 조작한 뒤 다시 자동 추적으로 돌아오는 구간이다.
+
+4-sample ADC 평균과 5프레임 좌표 평균은 진동을 줄이는 대신 응답 지연을 만든다. 평균 구간과 각도 이득은 추적 속도와 안정성 사이의 trade-off를 고려해 조정해야 한다.
+
+| 동작 항목 | 구현 결과 |
+|:--|:--|
+| 카메라 영상 출력 | OV7670 영상을 VGA 화면에 출력 |
+| 녹색 객체 검출 | 색상 및 노이즈 필터 결과로 Bounding Box 표시 |
+| 자동 추적 | 객체 중심 오차를 줄이는 방향으로 Pan/Tilt 제어 |
+| 수동 조작 | X/Y 조이스틱 변화량으로 두 축의 방향 조절 |
+| 모드 전환 | 버튼 토글 결과에 따라 자동 및 수동 입력 선택 |
+| 각도 제한 | Pan과 Tilt의 기계적 허용 범위 안에서 명령 생성 |
+
+## 6.2 문제 원인 분석
+
+- 객체를 보정할수록 카메라가 반대 방향으로 이동하는 문제가 발생했다. 영상 좌표의 보정 방향과 실제 브래킷에 장착된 서보의 회전 방향이 반대였으며, 각도 변화량의 부호를 반전해 정상 추적하도록 수정하였다.
+
+| <img width="388" alt="부호 반전 전 서보 동작" src="https://github.com/user-attachments/assets/fa1862ec-282b-42ea-8878-01a27986d91f" /> | <img width="388" alt="부호 반전 전 모니터 화면 2배속" src="https://github.com/user-attachments/assets/c6c05741-8759-4ac1-b214-02accd677d72" /> |
+|:---:|:---:|
+
+그림 19. 부호 반전 전 동작. 왼쪽은 서보가 객체를 피해 반대 방향으로 회전하는 모습, 오른쪽은 같은 상태의 VGA 화면(2배속)
+
+## 6.3 개선 방안
+
+- 조명 변화에 맞춰 색상 임계값을 자동 조정하고, 객체 미검출 시 Pan/Tilt 재탐색 상태를 추가한다.
+
+- 오차 크기에 따른 가변 제어 이득을 적용해 중심 부근 진동과 큰 이동의 응답속도를 함께 개선한다.
+
+# 7. 결론 및 고찰
+
+이번 프로젝트에서는 OV7670 영상의 입력, 녹색 객체 검출, 중심 오차 계산, VGA 출력과 Pan-Tilt 서보 제어를 하나의 FPGA 시스템으로 통합하였다. 조이스틱 수동 제어 경로도 함께 구성하여 같은 서보 제어부를 자동 추적과 수동 조작에 사용할 수 있도록 하였다.
+
+| 검증 대상 | 주요 결과 |
+|:--|:--|
+| OV7670 Capture | Scoreboard 78,203건 PASS, FAIL 0 |
+| SCCB Master | 실행 로그 PASS 56, FAIL 0 |
+| 영상 Golden Model | 320×240 및 640×480 비교에서 6단계 MATCH |
+| 조이스틱 이동평균 | 제시된 측정 구간의 Peak-to-Peak 변동폭 약 60% 감소 |
+| FPGA 시연 | 영상 및 Bounding Box 출력, 자동 추적과 수동 제어 구현 |
+
+![](https://github.com/user-attachments/assets/31a2dfe2-39c4-4688-b637-1b72e6b38af2)
+
+# 참고 문헌
+
+- [1] Digilent, Basys 3 FPGA Board Reference Manual.
+- [2] OmniVision, OV7670 CMOS VGA CameraChip Data Sheet.
+- [3] TowerPro, SG90 Micro Servo Specification.
